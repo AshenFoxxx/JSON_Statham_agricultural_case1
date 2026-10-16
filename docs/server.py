@@ -149,7 +149,7 @@ def index():
     return "No documentation found.", 404
 
 
-@app.route("/doc/<page_name>")
+@app.route("/doc/<path:page_name>")
 def serve_doc(page_name: str):
     """Render a markdown page as HTML."""
     toc, flat = get_toc_data()
