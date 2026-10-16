@@ -1,14 +1,31 @@
-import { useState } from 'react'
-import type { Product } from '../types'
-import { mockProducts } from '../data/mockData'
+import { useState, useEffect } from 'react'
+import { productsApi, type Product } from '../api/client'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 
 export default function Warehouse() {
-  const [data, setData] = useState<Product[]>(mockProducts)
+  const [data, setData] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Product>>({})
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const products = await productsApi.list()
+      setData(products)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   const columns = [
     { key: 'name', label: 'Культура' },
@@ -22,23 +39,34 @@ export default function Warehouse() {
     setIsModalOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Удалить культуру?')) {
-      setData(data.filter((p) => p.id !== id))
+      try {
+        await productsApi.delete(id)
+        setData(data.filter((p) => p.id !== id))
+      } catch (err: any) {
+        alert(err.message)
+      }
     }
   }
 
-  const handleSave = () => {
-    if (editingId) {
-      setData(data.map((p) => (p.id === editingId ? { ...p, ...formData } as Product : p)))
-    } else {
-      const newProduct: Product = {
-        ...formData as Product,
-        id: `product-${Date.now()}`,
+  const handleSave = async () => {
+    try {
+      if (editingId) {
+        const updated = await productsApi.update(editingId, formData as Product)
+        setData(data.map((p) => (p.id === editingId ? updated : p)))
+      } else {
+        const newProduct: Product = {
+          ...(formData as Product),
+          id: `product-${Date.now()}`,
+        }
+        const created = await productsApi.create(newProduct)
+        setData([...data, created])
       }
-      setData([...data, newProduct])
+      closeModal()
+    } catch (err: any) {
+      alert(err.message)
     }
-    closeModal()
   }
 
   const closeModal = () => {
@@ -46,6 +74,9 @@ export default function Warehouse() {
     setEditingId(null)
     setFormData({})
   }
+
+  if (loading) return <div className="text-center py-8">Загрузка...</div>
+  if (error) return <div className="text-center py-8 text-red-500">Ошибка: {error}</div>
 
   return (
     <div>

@@ -1,21 +1,38 @@
-import { useState } from 'react'
-import type { Vehicle } from '../types'
-import { mockVehicles } from '../data/mockData'
+import { useState, useEffect } from 'react'
+import { vehiclesApi, type Vehicle } from '../api/client'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 
 export default function Vehicles() {
-  const [data, setData] = useState<Vehicle[]>(mockVehicles)
+  const [data, setData] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Vehicle>>({})
 
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const vehicles = await vehiclesApi.list()
+      setData(vehicles)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
   const columns = [
     { key: 'name', label: 'Машина' },
     { key: 'capacity_kg', label: 'Грузоподъёмность (кг)', render: (v: number) => `${v.toLocaleString()} кг` },
-    { key: 'cost_per_trip', label: 'Стоимость рейса (₽)', render: (v: number) => `${v.toLocaleString()} ₽` },
-    { key: 'max_trips', label: 'Макс. рейсов', render: (v: number) => `${v}` },
     { key: 'fuel_consumption_l_per_100km', label: 'Расход топлива (л/100км)', render: (v: number) => `${v} л` },
+    { key: 'max_trips', label: 'Макс. рейсов', render: (v: number) => `${v}` },
+    { key: 'max_stops', label: 'Макс. остановок', render: (v: number) => `${v}` },
     {
       key: 'available',
       label: 'Статус',
@@ -37,24 +54,35 @@ export default function Vehicles() {
     setIsModalOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Удалить машину?')) {
-      setData(data.filter((v) => v.id !== id))
+      try {
+        await vehiclesApi.delete(id)
+        setData(data.filter((v) => v.id !== id))
+      } catch (err: any) {
+        alert(err.message)
+      }
     }
   }
 
-  const handleSave = () => {
-    if (editingId) {
-      setData(data.map((v) => (v.id === editingId ? { ...v, ...formData } as Vehicle : v)))
-    } else {
-      const newVehicle: Vehicle = {
-        ...formData as Vehicle,
-        id: `vehicle-${Date.now()}`,
-        available: true,
+  const handleSave = async () => {
+    try {
+      if (editingId) {
+        const updated = await vehiclesApi.update(editingId, formData as Vehicle)
+        setData(data.map((v) => (v.id === editingId ? updated : v)))
+      } else {
+        const newVehicle: Vehicle = {
+          ...(formData as Vehicle),
+          id: `vehicle-${Date.now()}`,
+          available: true,
+        }
+        const created = await vehiclesApi.create(newVehicle)
+        setData([...data, created])
       }
-      setData([...data, newVehicle])
+      closeModal()
+    } catch (err: any) {
+      alert(err.message)
     }
-    closeModal()
   }
 
   const closeModal = () => {
@@ -62,6 +90,9 @@ export default function Vehicles() {
     setEditingId(null)
     setFormData({})
   }
+
+  if (loading) return <div className="text-center py-8">Загрузка...</div>
+  if (error) return <div className="text-center py-8 text-red-500">Ошибка: {error}</div>
 
   return (
     <div>
@@ -111,23 +142,6 @@ export default function Vehicles() {
           />
           <input
             className="input-field"
-            placeholder="Стоимость рейса (₽)"
-            type="number"
-            min="0"
-            value={formData.cost_per_trip ?? ''}
-            onChange={(e) => setFormData({ ...formData, cost_per_trip: Number(e.target.value) })}
-          />
-          <input
-            className="input-field"
-            placeholder="Макс. рейсов"
-            type="number"
-            min="1"
-            max="10"
-            value={formData.max_trips ?? ''}
-            onChange={(e) => setFormData({ ...formData, max_trips: Number(e.target.value) })}
-          />
-          <input
-            className="input-field"
             placeholder="Расход топлива (л/100км)"
             type="number"
             min="0"
@@ -135,6 +149,35 @@ export default function Vehicles() {
             value={formData.fuel_consumption_l_per_100km ?? ''}
             onChange={(e) => setFormData({ ...formData, fuel_consumption_l_per_100km: Number(e.target.value) })}
           />
+          <input
+            className="input-field"
+            placeholder="Цена топлива (₽/л)"
+            type="number"
+            min="0"
+            step="0.1"
+            value={formData.fuel_price_rub_per_liter ?? ''}
+            onChange={(e) => setFormData({ ...formData, fuel_price_rub_per_liter: Number(e.target.value) })}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              className="input-field"
+              placeholder="Макс. рейсов"
+              type="number"
+              min="1"
+              max="10"
+              value={formData.max_trips ?? ''}
+              onChange={(e) => setFormData({ ...formData, max_trips: Number(e.target.value) })}
+            />
+            <input
+              className="input-field"
+              placeholder="Макс. остановок"
+              type="number"
+              min="1"
+              max="5"
+              value={formData.max_stops ?? ''}
+              onChange={(e) => setFormData({ ...formData, max_stops: Number(e.target.value) })}
+            />
+          </div>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"

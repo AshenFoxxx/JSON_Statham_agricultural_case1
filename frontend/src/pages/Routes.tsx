@@ -1,17 +1,38 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { solverApi, productsApi, buyersApi, vehiclesApi, type Product, type Buyer, type Vehicle } from '../api/client'
 import type { Route } from '../types'
-import { mockRoutes, mockVehicles, mockBuyers, mockProducts } from '../data/mockData'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
-import { callSolver } from '../api/solver'
 
 export default function Routes() {
-  const [data, setData] = useState<Route[]>(mockRoutes)
+  const [data, setData] = useState<Route[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [buyers, setBuyers] = useState<Buyer[]>([])
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Route>>({})
   const [isCalculating, setIsCalculating] = useState(false)
   const [calcError, setCalcError] = useState<string | null>(null)
+
+  const fetchData = async () => {
+    try {
+      const [productsData, buyersData, vehiclesData] = await Promise.all([
+        productsApi.list(),
+        buyersApi.list(),
+        vehiclesApi.list(),
+      ])
+      setProducts(productsData)
+      setBuyers(buyersData)
+      setVehicles(vehiclesData)
+    } catch (err: any) {
+      console.error('Failed to fetch data:', err)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   const columns = [
     {
@@ -67,7 +88,7 @@ export default function Routes() {
       setData(data.map((r) => (r.id === editingId ? { ...r, ...formData } as Route : r)))
     } else {
       const newRoute: Route = {
-        ...formData as Route,
+        ...(formData as Route),
         id: `route-${Date.now()}`,
       }
       setData([...data, newRoute])
@@ -86,7 +107,7 @@ export default function Routes() {
     setCalcError(null)
 
     try {
-      const result = await callSolver(mockProducts, mockBuyers, mockVehicles)
+      const result = await solverApi.plan({ products, buyers, vehicles })
 
       const routes: Route[] = result.routes.map((r: any) => ({
         id: `route-${Date.now()}-${r.vehicle_id}-${r.buyer_id}-${r.product_id}`,
@@ -239,7 +260,7 @@ export default function Routes() {
               className="input-field"
               value={formData.vehicle_id || ''}
               onChange={(e) => {
-                const vehicle = mockVehicles.find((v) => v.id === e.target.value)
+                const vehicle = vehicles.find((v) => v.id === e.target.value)
                 setFormData({
                   ...formData,
                   vehicle_id: e.target.value,
@@ -248,7 +269,7 @@ export default function Routes() {
               }}
             >
               <option value="">Выберите машину</option>
-              {mockVehicles
+              {vehicles
                 .filter((v) => v.available)
                 .map((v) => (
                   <option key={v.id} value={v.id}>{v.name} (до {v.capacity_kg} кг)</option>
@@ -265,7 +286,7 @@ export default function Routes() {
               className="input-field"
               value={formData.buyer_id || ''}
               onChange={(e) => {
-                const buyer = mockBuyers.find((b) => b.id === e.target.value)
+                const buyer = buyers.find((b) => b.id === e.target.value)
                 setFormData({
                   ...formData,
                   buyer_id: e.target.value,
@@ -274,8 +295,8 @@ export default function Routes() {
               }}
             >
               <option value="">Выберите покупателя</option>
-              {mockBuyers.map((b) => (
-                <option key={b.id} value={b.id}>{b.name} ({b.travel_time_hours} ч)</option>
+              {buyers.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
           </div>
@@ -289,7 +310,7 @@ export default function Routes() {
               className="input-field"
               value={formData.product_id || ''}
               onChange={(e) => {
-                const product = mockProducts.find((p) => p.id === e.target.value)
+                const product = products.find((p) => p.id === e.target.value)
                 setFormData({
                   ...formData,
                   product_id: e.target.value,
@@ -298,7 +319,7 @@ export default function Routes() {
               }}
             >
               <option value="">Выберите продукт</option>
-              {mockProducts.map((p) => (
+              {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} ({p.stock_kg} кг доступно)</option>
               ))}
             </select>

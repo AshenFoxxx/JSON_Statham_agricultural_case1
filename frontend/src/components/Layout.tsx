@@ -3,6 +3,7 @@ import { useTheme } from '../contexts/ThemeContext'
 
 const navItems = [
   { path: '/warehouse', label: 'Склад', icon: '🏭' },
+  { path: '/farm', label: 'Хозяйство', icon: '🌾' },
   { path: '/buyers', label: 'Покупатели', icon: '🛒' },
   { path: '/vehicles', label: 'Машины', icon: '🚛' },
   { path: '/routes', label: 'Маршруты', icon: '🗺️' },
