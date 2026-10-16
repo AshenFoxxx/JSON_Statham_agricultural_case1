@@ -31,7 +31,6 @@ export default function Vehicles() {
     { key: 'name', label: 'Машина' },
     { key: 'capacity_kg', label: 'Грузоподъёмность (кг)', render: (v: number) => `${v.toLocaleString()} кг` },
     { key: 'fuel_consumption_l_per_100km', label: 'Расход топлива (л/100км)', render: (v: number) => `${v} л` },
-    { key: 'max_trips', label: 'Макс. рейсов', render: (v: number) => `${v}` },
     { key: 'max_stops', label: 'Макс. остановок', render: (v: number) => `${v}` },
     {
       key: 'available',
@@ -159,15 +158,6 @@ export default function Vehicles() {
             onChange={(e) => setFormData({ ...formData, fuel_price_rub_per_liter: Number(e.target.value) })}
           />
           <div className="grid grid-cols-2 gap-4">
-            <input
-              className="input-field"
-              placeholder="Макс. рейсов"
-              type="number"
-              min="1"
-              max="10"
-              value={formData.max_trips ?? ''}
-              onChange={(e) => setFormData({ ...formData, max_trips: Number(e.target.value) })}
-            />
             <input
               className="input-field"
               placeholder="Макс. остановок"

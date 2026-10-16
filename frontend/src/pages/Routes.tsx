@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import { farmApi, productsApi, buyersApi, vehiclesApi, ordersApi, solverApi, type Farm, type Product, type Buyer, type Vehicle, type BuyerOrder, type SolverTrip, type SolverShipment, type SolverBalance } from '../api/client'
 
+// ── Внутренний тип баланса с fallback на старые имена ──────────────
+function getLeftover(b: SolverBalance): number {
+  return b.leftover_kg ?? 0
+}
+function getLoss(b: SolverBalance): number {
+  return b.loss_kg ?? 0
+}
+
 export default function Routes() {
   const [trips, setTrips] = useState<SolverTrip[]>([])
   const [shipments, setShipments] = useState<SolverShipment[]>([])
@@ -52,42 +60,54 @@ export default function Routes() {
     setCalcError(null)
 
     try {
-      const result = await solverApi.plan({
-        farm: {
-          name: farm.name,
-          longitude: farm.longitude,
-          latitude: farm.latitude,
-        },
-        products: products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          stock_kg: p.stock_kg,
-          max_delivery_hours: p.max_delivery_hours,
-        })),
-        buyers: buyers.map((b) => ({
-          id: b.id,
-          name: b.name,
-          longitude: b.longitude,
-          latitude: b.latitude,
-          orders: orders
-            .filter((o) => o.buyer_id === b.id)
-            .map((o) => ({
-              product_id: o.product_id,
-              demand_kg: o.demand_kg,
-              price_per_kg: o.price_per_kg,
-            })),
-        })),
-        vehicles: vehicles.map((v) => ({
-          id: v.id,
-          name: v.name,
-          capacity_kg: v.capacity_kg,
-          fuel_consumption_l_per_100km: v.fuel_consumption_l_per_100km,
-          fuel_price_rub_per_liter: v.fuel_price_rub_per_liter,
-          max_trips: v.max_trips,
-          max_stops: v.max_stops,
-          available: v.available,
-        })),
-      })
+    // Фильтруем покупателей без заказов — solver вернёт 422
+    const buyersWithOrders = buyers.filter((b) => {
+      const buyerOrders = orders.filter((o) => o.buyer_id === b.id)
+      return buyerOrders.length > 0
+    })
+
+    if (buyersWithOrders.length === 0) {
+      setCalcError('Добавьте хотя бы одного покупателя с заказом')
+      return
+    }
+
+    const result = await solverApi.plan({
+      farm: {
+        name: farm.name,
+        longitude: farm.longitude,
+        latitude: farm.latitude,
+      },
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        stock_kg: p.stock_kg,
+        max_delivery_hours: p.max_delivery_hours,
+      })),
+      buyers: buyersWithOrders.map((b) => ({
+        id: b.id,
+        name: b.name,
+        longitude: b.longitude,
+        latitude: b.latitude,
+        orders: orders
+          .filter((o) => o.buyer_id === b.id)
+          .map((o) => ({
+            product_id: o.product_id,
+            demand_kg: o.demand_kg,
+            price_per_kg: o.price_per_kg,
+          })),
+      })),
+      vehicles: vehicles.map((v) => ({
+        id: v.id,
+        name: v.name,
+        capacity_kg: v.capacity_kg,
+        fuel_consumption_l_per_100km: v.fuel_consumption_l_per_100km,
+        fuel_price_rub_per_liter: v.fuel_price_rub_per_liter,
+        // Solver требует max_trips === 1
+        max_trips: 1,
+        max_stops: v.max_stops,
+        available: v.available,
+      })),
+    })
 
       setTrips(result.trips || [])
       setShipments(result.shipments || [])
@@ -240,14 +260,22 @@ export default function Routes() {
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Маршрут</h4>
                       <div className="flex flex-wrap gap-2">
+                        {/* Первая точка — ферма */}
+                        <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm">
+                          🌾 Хозяйство
+                        </span>
                         {trip.waypoints.map((wp, wpIndex) => (
                           <span
                             key={wpIndex}
                             className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm"
                           >
-                            {wpIndex === 0 ? '🌾 ' : '📍 '}{getBuyerName(wp.id)}
+                            📍 {getBuyerName(wp.id)}
                           </span>
                         ))}
+                        {/* Последняя точка — ферма (возврат) */}
+                        <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm">
+                          🌾 Хозяйство
+                        </span>
                       </div>
                     </div>
 
@@ -315,8 +343,8 @@ export default function Routes() {
                 {balances.map((b, i) => (
                   <tr key={i}>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getProductName(b.product_id)}</td>
-                    <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400 font-medium">{b.remaining_kg} кг</td>
-                    <td className="px-6 py-4 text-sm text-red-600 dark:text-red-400 font-medium">{b.lost_kg} кг</td>
+                    <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400 font-medium">{getLeftover(b)} кг</td>
+                    <td className="px-6 py-4 text-sm text-red-600 dark:text-red-400 font-medium">{getLoss(b)} кг</td>
                   </tr>
                 ))}
               </tbody>

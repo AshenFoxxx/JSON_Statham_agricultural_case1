@@ -112,6 +112,29 @@ export const vehiclesApi = {
 }
 
 // ── Solver ────────────────────────────────────────────────────────
+// Solver API — отдельный URL (отдельный FastAPI сервер)
+const SOLVER_BASE = import.meta.env.VITE_SOLVER_URL || 'http://127.0.0.1:8000'
+
+async function solverRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${SOLVER_BASE}${path}`
+  // Solver может считать до 120 секунд — ставим 130с
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 130_000)
+  try {
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      ...options,
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      const error = await response.text().catch(() => '')
+      throw new Error(`Solver API error ${response.status}: ${error || response.statusText}`)
+    }
+    return response.json() as Promise<T>
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 export interface SolverFarm {
   name: string
@@ -165,9 +188,18 @@ export interface SolverShipment {
   quantity_kg: number
 }
 
+// Остановка в рейсе — buyer_id (не id), время прибытия, нагрузка
 export interface SolverStop {
+  buyer_id: string
+  arrival_hours: number
+  load_kg: number
+}
+
+// Точка маршрута — может быть ферма (с координатами) или покупатель
+export interface SolverWaypoint {
   id: string
-  // ... other stop fields
+  longitude?: number
+  latitude?: number
 }
 
 export interface SolverTrip {
@@ -176,14 +208,17 @@ export interface SolverTrip {
   distance_km: number
   cost: number
   load_kg: number
-  waypoints: { id: string }[]
+  waypoints: SolverWaypoint[]
   geometry: { type: string; coordinates: number[][] } // GeoJSON LineString [lon, lat]
 }
 
+// Балансы — leftover_kg (не remaining_kg), loss_kg (не lost_kg)
 export interface SolverBalance {
   product_id: string
-  remaining_kg: number
-  lost_kg: number
+  leftover_kg: number
+  loss_kg: number
+  stock_kg?: number
+  shipped_kg?: number
 }
 
 export interface SolverPlanResponse {
@@ -199,5 +234,5 @@ export interface SolverPlanResponse {
 
 export const solverApi = {
   plan: (data: SolverPlanRequest) =>
-    request<SolverPlanResponse>('/api/v1/plan', { method: 'POST', body: JSON.stringify(data) }),
+    solverRequest<SolverPlanResponse>('/api/v1/plan', { method: 'POST', body: JSON.stringify(data) }),
 }
