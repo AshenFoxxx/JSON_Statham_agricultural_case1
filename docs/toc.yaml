@@ -1,0 +1,40 @@
+# Table of Contents — Route Planner Documentation
+# Diataxis framework: Tutorials | How-To Guides | Reference | Explanation
+
+- title: 🚀 Обучение (Tutorials)
+  file: tutorials/01-getting-started.md
+  children:
+    - title: Запуск через Docker
+      file: tutorials/02-docker-quickstart.md
+
+- title: 🛠 Практические руководства (How-To)
+  file: how-to/build-routes.md
+  children:
+    - title: Построение маршрута
+      file: how-to/build-routes.md
+    - title: Развёртывание сервисов
+      file: how-to/deploy-services.md
+    - title: Настройка конфигурации
+      file: how-to/customize-config.md
+
+- title: 📖 Справочник (Reference)
+  file: reference/architecture.md
+  children:
+    - title: Архитектура системы
+      file: reference/architecture.md
+    - title: API и данные
+      file: reference/api-reference.md
+    - title: Docker-конфигурация
+      file: reference/docker-reference.md
+    - title: Параметры конфигурации
+      file: reference/config-reference.md
+
+- title: 💡 Объяснения (Explanation)
+  file: explanation/why-docker.md
+  children:
+    - title: Почему Docker
+      file: explanation/why-docker.md
+    - title: Как работает расчёт маршрута
+      file: explanation/how-route-calculation-works.md
+    - title: Архитектурные решения
+      file: explanation/architectural-decisions.md
