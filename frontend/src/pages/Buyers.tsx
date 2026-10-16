@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { buyersApi, ordersApi, type Buyer, type BuyerOrder } from '../api/client'
+import { buyersApi, ordersApi, productsApi, type Buyer, type BuyerOrder, type Product } from '../api/client'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 
 export default function Buyers() {
   const [buyers, setBuyers] = useState<Buyer[]>([])
   const [orders, setOrders] = useState<BuyerOrder[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -17,12 +18,14 @@ export default function Buyers() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [buyersData, ordersData] = await Promise.all([
+      const [buyersData, ordersData, productsData] = await Promise.all([
         buyersApi.list(),
         ordersApi.list(),
+        productsApi.list(),
       ])
       setBuyers(buyersData)
       setOrders(ordersData)
+      setProducts(productsData)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -40,10 +43,12 @@ export default function Buyers() {
 
   const columns = [
     { key: 'name', label: 'Покупатель' },
+    { key: 'longitude', label: 'Долгота', render: (v: number) => v.toFixed(4) },
+    { key: 'latitude', label: 'Широта', render: (v: number) => v.toFixed(4) },
     {
       key: 'orders',
       label: 'Заказы',
-      render: ( _: unknown, row: Buyer) => {
+      render: (_: unknown, row: Buyer) => {
         const buyerOrders = getBuyerOrders(row.id)
         if (buyerOrders.length === 0) return <span className="text-gray-400 text-xs">Нет заказов</span>
         return (
@@ -177,6 +182,25 @@ export default function Buyers() {
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
 
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              className="input-field"
+              placeholder="Долгота (lon)"
+              type="number"
+              step="0.000001"
+              value={formData.longitude ?? ''}
+              onChange={(e) => setFormData({ ...formData, longitude: Number(e.target.value) })}
+            />
+            <input
+              className="input-field"
+              placeholder="Широта (lat)"
+              type="number"
+              step="0.000001"
+              value={formData.latitude ?? ''}
+              onChange={(e) => setFormData({ ...formData, latitude: Number(e.target.value) })}
+            />
+          </div>
+
           {/* Orders section */}
           {editingId && (
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -226,12 +250,21 @@ export default function Buyers() {
         title="Новый заказ"
       >
         <div className="space-y-4">
-          <input
-            className="input-field"
-            placeholder="Культура (product_id)"
-            value={orderForm.product_id || ''}
-            onChange={(e) => setOrderForm({ ...orderForm, product_id: e.target.value })}
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Культура
+            </label>
+            <select
+              className="input-field"
+              value={orderForm.product_id || ''}
+              onChange={(e) => setOrderForm({ ...orderForm, product_id: e.target.value })}
+            >
+              <option value="">Выберите культуру</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
           <input
             className="input-field"
             placeholder="Спрос (кг)"

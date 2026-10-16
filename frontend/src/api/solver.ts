@@ -1,9 +1,19 @@
+import type {
+  SolverPlanRequest,
+  SolverFarm,
+  SolverProduct,
+  SolverBuyer,
+  SolverVehicle,
+  SolverPlanResponse,
+} from './client'
 import { solverApi } from './client'
 
 export async function callSolver(
-  products: any[],
-  buyers: any[],
-  vehicles: any[]
-): Promise<any> {
-  return solverApi.plan({ products, buyers, vehicles })
+  farm: SolverFarm,
+  products: SolverProduct[],
+  buyers: SolverBuyer[],
+  vehicles: SolverVehicle[]
+): Promise<SolverPlanResponse> {
+  const body: SolverPlanRequest = { farm, products, buyers, vehicles }
+  return solverApi.plan(body)
 }

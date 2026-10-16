@@ -113,7 +113,91 @@ export const vehiclesApi = {
 
 // ── Solver ────────────────────────────────────────────────────────
 
+export interface SolverFarm {
+  name: string
+  longitude: number
+  latitude: number
+}
+
+export interface SolverProduct {
+  id: string
+  name: string
+  stock_kg: number
+  max_delivery_hours: number
+}
+
+export interface SolverOrder {
+  product_id: string
+  demand_kg: number
+  price_per_kg: number
+}
+
+export interface SolverBuyer {
+  id: string
+  name: string
+  longitude: number
+  latitude: number
+  orders: SolverOrder[]
+}
+
+export interface SolverVehicle {
+  id: string
+  name: string
+  capacity_kg: number
+  fuel_consumption_l_per_100km: number
+  fuel_price_rub_per_liter: number
+  max_trips: number
+  max_stops: number
+  available: boolean
+}
+
+export interface SolverPlanRequest {
+  farm: SolverFarm
+  products: SolverProduct[]
+  buyers: SolverBuyer[]
+  vehicles: SolverVehicle[]
+}
+
+export interface SolverShipment {
+  product_id: string
+  buyer_id: string
+  vehicle_id: string
+  quantity_kg: number
+}
+
+export interface SolverStop {
+  id: string
+  // ... other stop fields
+}
+
+export interface SolverTrip {
+  vehicle_id: string
+  stops: SolverStop[]
+  distance_km: number
+  cost: number
+  load_kg: number
+  waypoints: { id: string }[]
+  geometry: { type: string; coordinates: number[][] } // GeoJSON LineString [lon, lat]
+}
+
+export interface SolverBalance {
+  product_id: string
+  remaining_kg: number
+  lost_kg: number
+}
+
+export interface SolverPlanResponse {
+  status: string
+  message: string
+  revenue: number
+  transport_cost: number
+  profit: number
+  shipments: SolverShipment[]
+  trips: SolverTrip[]
+  balances: SolverBalance[]
+}
+
 export const solverApi = {
-  plan: (data: { products: any[]; buyers: any[]; vehicles: any[] }) =>
-    request<{ routes: any[] }>('/api/v1/plan', { method: 'POST', body: JSON.stringify(data) }),
+  plan: (data: SolverPlanRequest) =>
+    request<SolverPlanResponse>('/api/v1/plan', { method: 'POST', body: JSON.stringify(data) }),
 }

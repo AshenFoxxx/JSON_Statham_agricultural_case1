@@ -33,7 +33,7 @@ export default function FarmPage() {
     if (farm) {
       setFormData({ ...farm })
     } else {
-      setFormData({ longitude: 54.9815, latitude: 36.2523 })
+      setFormData({ longitude: 36.6103, latitude: 55.0969 })
     }
     setIsModalOpen(true)
   }
