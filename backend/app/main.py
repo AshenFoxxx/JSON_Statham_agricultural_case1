@@ -1,7 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.demo_data import demo_request
+from pathlib import Path
+
+from fastapi.staticfiles import StaticFiles
+
+from app.demo_data import demo_fleet_request, demo_request
 from app.planning import build_plan
 from app.routing import RouteError, fetch_route
 from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
@@ -30,6 +34,11 @@ def demo() -> PlanRequest:
     return demo_request()
 
 
+@app.get("/api/v1/demo/fleet", response_model=PlanRequest)
+def demo_fleet() -> PlanRequest:
+    return demo_fleet_request()
+
+
 @app.post("/api/v1/plan", response_model=PlanResponse)
 def plan(body: PlanRequest) -> PlanResponse:
     try:
@@ -49,3 +58,8 @@ def route(body: RouteRequest) -> RouteResponse:
         )
     except RouteError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+_frontend = Path(__file__).resolve().parents[2] / "frontend"
+if _frontend.is_dir():
+    app.mount("/map", StaticFiles(directory=_frontend, html=True), name="map")

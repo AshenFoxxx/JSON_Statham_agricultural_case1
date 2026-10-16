@@ -135,3 +135,61 @@ def _base() -> dict:
 
 def demo_request() -> PlanRequest:
     return PlanRequest.model_validate(_base())
+
+
+def demo_fleet_request() -> PlanRequest:
+    """Три машины и десять покупателей вокруг хозяйства. Для карты."""
+    buyers = [
+        ("buyer-obninsk", "Рынок Обнинск", 36.5855, 55.112),
+        ("buyer-balabanovo", "Балабаново", 36.656, 55.177),
+        ("buyer-maloyaroslavets", "Малоярославец", 36.471, 55.014),
+        ("buyer-zhukov", "Жуков", 36.744, 55.031),
+        ("buyer-borovsk", "Боровск", 36.486, 55.206),
+        ("buyer-naro-fominsk", "Наро-Фоминск", 36.734, 55.387),
+        ("buyer-kaluga", "Сеть Калуга", 36.2613, 54.5138),
+        ("buyer-serpukhov", "Серпухов", 37.415, 54.913),
+        ("buyer-moscow", "Рестораны Москва", 37.6173, 55.7558),
+        ("buyer-tula", "Опт Тула", 37.6186, 54.193),
+    ]
+    return PlanRequest.model_validate(
+        {
+            "farm": {
+                "name": "Хозяйство Обнинск",
+                "longitude": 36.6103,
+                "latitude": 55.0969,
+            },
+            "products": [
+                {
+                    "id": "berry",
+                    "name": "Ягода",
+                    "stock_kg": 600,
+                    "max_delivery_hours": 24,
+                }
+            ],
+            "buyers": [
+                {
+                    "id": buyer_id,
+                    "name": name,
+                    "longitude": longitude,
+                    "latitude": latitude,
+                    "orders": [
+                        {"product_id": "berry", "demand_kg": 100, "price_per_kg": 10}
+                    ],
+                }
+                for buyer_id, name, longitude, latitude in buyers
+            ],
+            "vehicles": [
+                {
+                    "id": f"vehicle-{letter}",
+                    "name": f"Машина {letter.upper()}",
+                    "capacity_kg": 200,
+                    "fuel_consumption_l_per_100km": 10,
+                    "fuel_price_rub_per_liter": 50,
+                    "max_trips": 1,
+                    "max_stops": 3,
+                    "available": True,
+                }
+                for letter in ("a", "b", "c")
+            ],
+        }
+    )

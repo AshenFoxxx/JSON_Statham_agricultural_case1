@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Маршрут грузовика</title>
+    <title>План поставок</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.5.0/ol.css" />
     <script src="https://cdn.jsdelivr.net/npm/ol@10.5.0/dist/ol.js"></script>
     <style>
@@ -11,7 +11,8 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e1a; color: #e2e8f0; }
         #map { width: 100%; height: 100vh; }
         .info-panel {
-            position: absolute; top: 20px; right: 20px; z-index: 1000; width: 340px;
+            position: absolute; top: 20px; right: 20px; z-index: 1000; width: 360px;
+            max-height: calc(100vh - 40px); overflow: auto;
             background: rgba(15, 23, 42, 0.96); border: 1px solid rgba(148, 163, 184, 0.15);
             border-radius: 20px; padding: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
@@ -22,31 +23,34 @@
             background: #0f172a; color: #e2e8f0; padding: 8px 10px;
         }
         button { margin-top: 12px; background: #0284c7; border: none; font-weight: 600; cursor: pointer; }
+        button:disabled { opacity: 0.6; cursor: wait; }
         .info-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
         .info-label { color: #94a3b8; font-size: 13px; }
         .info-value { color: #38bdf8; font-weight: 600; }
         .error { color: #fca5a5; font-size: 13px; margin-top: 8px; }
         .popup { background: rgba(15, 23, 42, 0.95); color: #e2e8f0; border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+        .trip { margin-top: 10px; padding: 10px; border-radius: 12px; background: #0f172a; }
+        .trip-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .trip p { color: #94a3b8; font-size: 12px; margin-top: 6px; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div class="info-panel">
-        <h2>Маршрут грузовика</h2>
+        <h2>План: 3 машины, 10 покупателей</h2>
         <label for="api">Адрес бэкенда</label>
         <input id="api" value="http://127.0.0.1:8000">
-        <label for="points">Точки: id, долгота, широта. По одной на строку</label>
-        <textarea id="points" rows="5" style="width:100%; border-radius:10px; padding:8px; background:#0f172a; color:#e2e8f0; border:1px solid rgba(148,163,184,0.2);">farm, 36.6103, 55.0969
-kaluga, 36.2613, 54.5138
-tula, 37.6173, 54.1930</textarea>
-        <button id="build" type="button">Построить маршрут</button>
+        <button id="build" type="button">Рассчитать и показать</button>
         <p id="error" class="error"></p>
-        <div class="info-item"><span class="info-label">Расстояние</span><span class="info-value" id="distance">—</span></div>
-        <div class="info-item"><span class="info-label">Время</span><span class="info-value" id="duration">—</span></div>
-        <div class="info-item"><span class="info-label">Топливо</span><span class="info-value" id="fuel">—</span></div>
-        <div class="info-item"><span class="info-label">Стоимость топлива</span><span class="info-value" id="cost">—</span></div>
+        <div class="info-item"><span class="info-label">Статус</span><span class="info-value" id="status">—</span></div>
+        <div class="info-item"><span class="info-label">Выручка</span><span class="info-value" id="revenue">—</span></div>
+        <div class="info-item"><span class="info-label">Топливо</span><span class="info-value" id="cost">—</span></div>
+        <div class="info-item"><span class="info-label">Прибыль</span><span class="info-value" id="profit">—</span></div>
+        <div id="trips"></div>
     </div>
     <script>
+        const COLORS = ['#38bdf8', '#f59e0b', '#a78bfa', '#34d399', '#f472b6'];
         const routeSource = new ol.source.Vector();
         const popupEl = document.createElement('div');
         popupEl.className = 'popup';
@@ -65,14 +69,14 @@ tula, 37.6173, 54.1930</textarea>
                     style: function (feature) {
                         if (feature.get('kind') === 'line') {
                             return new ol.style.Style({
-                                stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 })
+                                stroke: new ol.style.Stroke({ color: feature.get('color'), width: 5 })
                             });
                         }
                         return new ol.style.Style({
                             image: new ol.style.Circle({
-                                radius: 8,
+                                radius: feature.get('kind') === 'farm' ? 9 : 7,
                                 fill: new ol.style.Fill({ color: feature.get('color') }),
-                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 })
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
                             })
                         });
                     }
@@ -86,7 +90,7 @@ tula, 37.6173, 54.1930</textarea>
         });
         map.on('click', function (event) {
             const feature = map.forEachFeatureAtPixel(event.pixel, function (item) { return item; });
-            if (!feature || feature.get('kind') !== 'point') {
+            if (!feature || !feature.get('name')) {
                 popup.setPosition(undefined);
                 return;
             }
@@ -94,50 +98,88 @@ tula, 37.6173, 54.1930</textarea>
             popup.setPosition(feature.getGeometry().getCoordinates());
         });
 
-        function parsePoints(text) {
-            return text.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
-                const [id, longitude, latitude] = line.split(',').map(part => part.trim());
-                return { id, longitude: Number(longitude), latitude: Number(latitude) };
-            });
+        function money(value) {
+            return Math.round(value) + ' руб';
         }
 
         document.getElementById('build').addEventListener('click', async () => {
             const error = document.getElementById('error');
+            const button = document.getElementById('build');
             error.textContent = '';
+            button.disabled = true;
             const api = document.getElementById('api').value.replace(/\/$/, '');
             try {
-                const response = await fetch(api + '/api/v1/route', {
+                const demo = await fetch(api + '/api/v1/demo/fleet');
+                const request = await demo.json();
+                if (!demo.ok) {
+                    throw new Error(request.detail || 'Не удалось взять сценарий');
+                }
+                const response = await fetch(api + '/api/v1/plan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ points: parsePoints(document.getElementById('points').value) })
+                    body: JSON.stringify(request)
                 });
                 const data = await response.json();
                 if (!response.ok) {
-                    throw new Error(data.detail || 'Бэкенд не построил маршрут');
+                    const detail = data.detail;
+                    throw new Error(typeof detail === 'string' ? detail : 'Бэкенд не посчитал план');
                 }
+                const names = { farm: request.farm.name };
+                request.buyers.forEach((buyer) => { names[buyer.id] = buyer.name; });
+                const vehicleColor = {};
+                data.trips.forEach((trip, index) => {
+                    vehicleColor[trip.vehicle_id] = COLORS[index % COLORS.length];
+                });
+                const served = {};
+                data.trips.forEach((trip) => {
+                    trip.stops.forEach((stop) => { served[stop.buyer_id] = trip.vehicle_id; });
+                });
+
                 routeSource.clear();
                 popup.setPosition(undefined);
-                const line = new ol.format.GeoJSON().readGeometry(data.geometry, {
-                    dataProjection: 'EPSG:4326',
-                    featureProjection: 'EPSG:3857'
+                const format = new ol.format.GeoJSON();
+                data.trips.forEach((trip) => {
+                    const color = vehicleColor[trip.vehicle_id];
+                    const line = format.readGeometry(trip.geometry, {
+                        dataProjection: 'EPSG:4326',
+                        featureProjection: 'EPSG:3857'
+                    });
+                    routeSource.addFeature(new ol.Feature({ geometry: line, kind: 'line', color: color }));
                 });
-                routeSource.addFeature(new ol.Feature({ geometry: line, kind: 'line' }));
-                data.waypoints.forEach((point, index) => {
-                    const color = index === 0 ? '#22c55e' : (index === data.waypoints.length - 1 ? '#ef4444' : '#fbbf24');
+                routeSource.addFeature(new ol.Feature({
+                    geometry: new ol.geom.Point(ol.proj.fromLonLat([request.farm.longitude, request.farm.latitude])),
+                    kind: 'farm',
+                    name: request.farm.name,
+                    color: '#22c55e'
+                }));
+                request.buyers.forEach((buyer) => {
+                    const vehicleId = served[buyer.id];
                     routeSource.addFeature(new ol.Feature({
-                        geometry: new ol.geom.Point(ol.proj.fromLonLat([point.longitude, point.latitude])),
+                        geometry: new ol.geom.Point(ol.proj.fromLonLat([buyer.longitude, buyer.latitude])),
                         kind: 'point',
-                        name: point.id,
-                        color: color
+                        name: buyer.name,
+                        color: vehicleId ? vehicleColor[vehicleId] : '#64748b'
                     }));
                 });
-                map.getView().fit(routeSource.getExtent(), { padding: [80, 80, 80, 80], maxZoom: 12 });
-                document.getElementById('distance').textContent = data.distance_km + ' км';
-                document.getElementById('duration').textContent = data.duration_hours.toFixed(1) + ' ч';
-                document.getElementById('fuel').textContent = data.fuel_liters + ' л';
-                document.getElementById('cost').textContent = Math.round(data.fuel_cost_rub) + ' руб';
+                map.getView().fit(routeSource.getExtent(), { padding: [80, 80, 80, 80], maxZoom: 11 });
+
+                document.getElementById('status').textContent = data.status;
+                document.getElementById('revenue').textContent = money(data.revenue);
+                document.getElementById('cost').textContent = money(data.transport_cost);
+                document.getElementById('profit').textContent = money(data.profit);
+                const vehicles = Object.fromEntries(request.vehicles.map((item) => [item.id, item.name]));
+                document.getElementById('trips').innerHTML = data.trips.map((trip) => {
+                    const color = vehicleColor[trip.vehicle_id];
+                    const stops = trip.stops.map((stop) => names[stop.buyer_id] || stop.buyer_id).join(' → ');
+                    return '<div class="trip"><div class="trip-head"><span class="dot" style="background:' + color +
+                        '"></span>' + (vehicles[trip.vehicle_id] || trip.vehicle_id) +
+                        '</div><p>' + (request.farm.name) + ' → ' + stops +
+                        '</p><p>' + trip.distance_km + ' км · ' + trip.load_kg + ' кг · ' + money(trip.cost) + '</p></div>';
+                }).join('');
             } catch (err) {
                 error.textContent = err.message;
+            } finally {
+                button.disabled = false;
             }
         });
     </script>

@@ -301,6 +301,69 @@ def test_extra_kilometers_drop_unprofitable_stop(monkeypatch) -> None:
     assert body["profit"] == 350
 
 
+def test_demo_fleet_has_three_vehicles_and_ten_buyers() -> None:
+    response = client.get("/api/v1/demo/fleet")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["vehicles"]) == 3
+    assert len(body["buyers"]) == 10
+    assert "longitude" in body["farm"]
+
+
+def test_three_vehicles_can_split_ten_buyers(monkeypatch) -> None:
+    buyers = [
+        {
+            "id": f"buyer-{index}",
+            "name": f"Покупатель {index}",
+            "longitude": 36.6 + index * 0.05,
+            "latitude": 55.1,
+            "orders": [{"product_id": "berry", "demand_kg": 100, "price_per_kg": 10}],
+        }
+        for index in range(1, 11)
+    ]
+    payload = {
+        "farm": {"name": "Хозяйство", "longitude": 36.6, "latitude": 55.1},
+        "products": [
+            {"id": "berry", "name": "Ягода", "stock_kg": 600, "max_delivery_hours": 24}
+        ],
+        "buyers": buyers,
+        "vehicles": [
+            {
+                "id": f"vehicle-{letter}",
+                "name": f"Машина {letter}",
+                "capacity_kg": 200,
+                "fuel_consumption_l_per_100km": 10,
+                "fuel_price_rub_per_liter": 50,
+                "max_trips": 1,
+                "max_stops": 3,
+                "available": True,
+            }
+            for letter in ("a", "b", "c")
+        ],
+    }
+    ids = ["farm"] + [buyer["id"] for buyer in buyers]
+    install_roads(monkeypatch, _mesh(ids, hours=0.5, km=10.0))
+
+    response = client.post("/api/v1/plan", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "optimal"
+    used_vehicles = {trip["vehicle_id"] for trip in body["trips"]}
+    served_buyers = {stop["buyer_id"] for trip in body["trips"] for stop in trip["stops"]}
+    assert used_vehicles == {"vehicle-a", "vehicle-b", "vehicle-c"}
+    assert len(body["trips"]) == 3
+    assert len(served_buyers) == 6
+    for trip in body["trips"]:
+        assert len(trip["stops"]) == 2
+        assert trip["load_kg"] == 200
+        assert trip["waypoints"][0]["id"] == "farm"
+        assert len(trip["waypoints"]) == 3
+    assert body["revenue"] == 6000
+    assert body["profit"] == round(body["revenue"] - body["transport_cost"], 2)
+    leftover = {item["product_id"]: item for item in body["balances"]}["berry"]["leftover_kg"]
+    assert leftover == 0
+
+
 def test_plan_rejects_unknown_product() -> None:
     payload = _payload()
     payload["buyers"][0]["orders"][0]["product_id"] = "potato"
