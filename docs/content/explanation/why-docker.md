@@ -8,11 +8,13 @@
 
 ## Контекст
 
-Проект состоит из двух независимых компонентов:
-- **Map** — CLI-инструмент для построения маршрутов
-- **Docs** — веб-сервер документации
+Проект **АгроЛогистика** состоит из трёх независимых компонентов:
 
-Оба написаны на Python, но имеют разные роли и требования.
+- **Frontend** — React-приложение с TypeScript и Tailwind CSS
+- **Backend** — FastAPI-сервер с CRUD API и solver'ом маршрутизации
+- **PostgreSQL** — реляционная база данных
+
+Все три компонента имеют разные языки, зависимости и требования к окружению.
 
 ---
 
@@ -22,8 +24,9 @@
 
 Разработчики используют разные ОС (macOS, Linux, Windows). Без Docker:
 
-- У кого-то Python 3.9, у кого-то 3.11
-- Библиотеки установлены глобально или в виртуальных окружениях
+- У кого-то Python 3.11, у кого-то 3.12
+- Node.js версии 18, 20, 22
+- PostgreSQL установлен локально или отсутствует
 - Пути к файлам различаются (`/` vs `\`)
 
 **Результат:** «У меня на машине работает» 😤
@@ -32,8 +35,9 @@
 
 ```
 # Без Docker — каждый ставит вручную:
-pip install requests      # для map
-pip install flask pyyaml markdown  # для docs
+pip install fastapi uvicorn sqlalchemy psycopg2-binary pydantic alembic
+npm install react typescript tailwindcss vite
+# + установить PostgreSQL
 ```
 
 Нет гарантии, что версии совпадают.
@@ -41,9 +45,10 @@ pip install flask pyyaml markdown  # для docs
 ### 3. Запуск нескольких сервисов
 
 ```bash
-# Нужно открыть 2 терминала:
-python docs/server.py &      # docs на порту 5001
-python main.py --from ...    # map — одноразовый запуск
+# Нужно открыть 3 терминала:
+cd backend && uvicorn app.main:app --reload &    # backend на порту 8000
+cd frontend && npm run dev &                      # frontend на порту 3000
+# + запустить PostgreSQL
 ```
 
 ### 4. Делегирование
@@ -52,12 +57,14 @@ python main.py --from ...    # map — одноразовый запуск
 
 ```
 # Без Docker:
-1. Установи Python 3.9
-2. Создай venv
-3. pip install requests
-4. pip install flask pyyaml markdown
-5. Запусти docs/server.py
-6. ...и забудь про 2 ошибки в зависимостях
+1. Установи Python 3.11
+2. Установи Node.js 18
+3. Установи PostgreSQL
+4. Создай venv, pip install
+5. npm install
+6. Настрой базу данных
+7. Запусти 3 сервиса
+8. ...и забудь про 5 ошибок в зависимостях
 
 # С Docker:
 docker compose up --build
@@ -70,10 +77,14 @@ docker compose up --build
 ### 1. Детерминированное окружение
 
 ```dockerfile
-FROM python:3.9-slim
+# Backend
+FROM python:3.11-slim
+
+# Frontend
+FROM node:18-alpine AS builder
 ```
 
-Одинаковый Python 3.9 на любой машине.
+Одинаковый Python 3.11 и Node.js 18 на любой машине.
 
 ### 2. Инкапсуляция зависимостей
 
@@ -82,7 +93,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 ```
 
-Зависимости зафиксированы в `requirements.txt` и собираются в образ.
+Зависимости зафиксированы в `requirements.txt` и `package.json`.
 
 ### 3. Единый интерфейс запуска
 
@@ -90,16 +101,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 docker compose up --build
 ```
 
-Одна команда — оба сервиса запущены.
+Одна команда — все три сервиса запущены.
 
-### 4. Изоляция портов
+### 4. Изоляция сервисов
 
 ```yaml
-ports:
-  - "5001:5001"
+services:
+  db:      # PostgreSQL на порту 5432
+  backend: # FastAPI на порту 8000
+  frontend: # React на порту 80
 ```
 
-Docs-сервис занимает только порт 5001. Map-сервис не занимает портов.
+Каждый сервис изолирован и занимает свой порт.
 
 ### 5. Повторное использование
 
@@ -136,10 +149,10 @@ Docs-сервис занимает только порт 5001. Map-сервис 
 ### Минусы
 
 - Нужно установить Docker Desktop (~4GB)
-- Образы занимают место (~200MB на образ)
+- Образы занимают место (~500MB на все образы)
 - Дополнительные файлы (Dockerfile, docker-compose.yml)
 - Сложнее отлаживать (нет прямого доступа к файловой системе)
 
 ---
 
-<< [Параметры конфигурации](/doc/reference/config-reference) | [Как работает расчёт маршрута](/doc/explanation/how-route-calculation-works) >>
+<< [Параметры конфигурации](/doc/reference/config-reference) | [Как работает расчёт маршрутов](/doc/explanation/how-route-calculation-works) >>

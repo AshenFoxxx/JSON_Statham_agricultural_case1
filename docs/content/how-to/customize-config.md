@@ -8,157 +8,174 @@
 
 ## Задача
 
-Настроить параметры топлива, API и вывода через Docker.
+Настроить параметры базы данных, API и переменные окружения.
 
 ---
 
-## Параметры топлива
+## Переменные окружения бэкенда
 
-### Через CLI-аргументы
+### База данных
 
-```bash
-docker compose run map \
-  --from "55.7558,37.6173" \
-  --to "59.9343,30.3351" \
-  --fuel-price 65 \
-  --fuel-consumption 40
-```
-
-### Через переменные окружения
-
-В `docker-compose.yml` добавьте:
+В `docker-compose.yml` бэкенда:
 
 ```yaml
 services:
-  map:
+  backend:
     environment:
-      - FUEL_PRICE=65
-      - FUEL_CONSUMPTION=40
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/agro_logistics
 ```
 
-> **Примечание:** CLI-аргументы имеют приоритет над переменными окружения.
+| Переменная | Описание | По умолчанию |
+|-----------|----------|--------------|
+| `DATABASE_URL` | URL подключения к PostgreSQL | `postgresql://postgres:postgres@db:5432/agro_logistics` |
 
----
-
-## Изменение API OSRM
-
-### Production-сервер
-
-По умолчанию используется публичный OSRM:
-
-```
-http://router.project-osrm.org/route/v1/driving
-```
-
-Для production-использования запустите свой OSRM-сервер:
-
-```bash
-# Скачать данные OpenStreetMap
-wget http://download.geofabrik.de/europe/russia-central.zip
-unzip russian*.zip
-
-# Запустить OSRM
-docker run -p 5000:5000 ghcr.io/project-osrm/osrm-backend osrm-routed \
-  --algorithm mld /data/russia-central.osrm
-```
-
-Затем укажите URL в `config.py`:
-
-```python
-OSRM_API_URL = "http://localhost:5000/route/v1/driving"
-```
-
-Или через переменную окружения:
+### Изменение параметров БД
 
 ```yaml
 services:
-  map:
+  db:
     environment:
-      - OSRM_API_URL=http://host.docker.internal:5000/route/v1/driving
-```
-
----
-
-## Настройка Docs-сервиса
-
-### Изменение порта
-
-В `docker-compose.yml`:
-
-```yaml
-services:
-  docs:
-    ports:
-      - "8080:5001"
-```
-
-### Изменение хоста
-
-```yaml
-services:
-  docs:
-    command: python server.py --host 0.0.0.0 --port 5001
-```
-
----
-
-## Настройка вывода
-
-### Папка вывода
-
-```bash
-docker compose run map \
-  --from "55.7558,37.6173" \
-  --to "59.9343,30.3351" \
-  --output /app/output
-```
-
-### Формат геометрии
-
-В `route_planner.py` строка 26:
-
-```python
-# simplified — упрощённая геометрия (меньше данных)
-url = f"{OSRM_API_URL}/{coords}?overview=simplified&geometries=geojson"
-
-# full — полная геометрия (больше точек)
-url = f"{OSRM_API_URL}/{coords}?overview=full&geometries=geojson"
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydb
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydb
 ```
 
 ---
 
 ## Настройка Docker Compose
 
+### Изменение портов
+
+```yaml
+services:
+  db:
+    ports:
+      - "5433:5432"   # БД на порту 5433
+  
+  backend:
+    ports:
+      - "9000:8000"   # Backend на порту 9000
+  
+  frontend:
+    ports:
+      - "3000:80"     # Frontend на порту 3000
+```
+
 ### Режим разработки
 
 ```yaml
 services:
-  docs:
+  backend:
     volumes:
-      - ./docs/content:/app/content    # Hot-reload markdown
-      - ./docs/static:/app/static      # Hot-reload CSS/JS
-      - ./docs/templates:/app/templates # Hot-reload templates
-    command: python server.py --host 0.0.0.0
+      - ./backend/app:/app/app    # Hot-reload кода
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Режим продакшн
 
 ```yaml
 services:
-  docs:
-    command: gunicorn --bind 0.0.0.0:5001 server:app
+  backend:
+    command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+---
+
+## Настройка базы данных
+
+### Подключение к БД
+
+```bash
+docker compose exec db psql -U postgres -d agro_logistics
+```
+
+### Создание резервной копии
+
+```bash
+docker compose exec db pg_dump -U postgres agro_logistics > backup.sql
+```
+
+### Восстановление из резервной копии
+
+```bash
+cat backup.sql | docker compose exec -T db psql -U postgres agro_logistics
+```
+
+### Сброс данных
+
+```bash
+docker compose down -v
+docker compose up -d db
+docker compose up -d backend
+```
+
+---
+
+## Настройка Frontend
+
+### Переменные окружения
+
+Создайте файл `.env` в директории `frontend`:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+### Изменение порта
+
+В `frontend/vite.config.ts`:
+
+```typescript
+export default defineConfig({
+  server: {
+    port: 3000,
+  },
+})
+```
+
+---
+
+## Настройка PostgreSQL
+
+### Изменение параметров
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agro_logistics
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 ```
 
 ---
 
 ## Переменные окружения
 
+### Backend
+
 | Переменная | Описание | По умолчанию |
 |-----------|----------|--------------|
-| `OSRM_API_URL` | URL OSRM API | `http://router.project-osrm.org/route/v1/driving` |
-| `FUEL_PRICE` | Цена топлива, руб/л | `62.0` |
-| `FUEL_CONSUMPTION` | Расход, л/100км | `35.0` |
-| `OUTPUT_DIR` | Папка вывода | `output` |
+| `DATABASE_URL` | URL подключения к PostgreSQL | `postgresql://postgres:postgres@db:5432/agro_logistics` |
+
+### Frontend
+
+| Переменная | Описание | По умолчанию |
+|-----------|----------|--------------|
+| `VITE_API_URL` | URL бэкенда | `http://localhost:8000` |
 
 ---
 

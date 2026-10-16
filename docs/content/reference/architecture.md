@@ -13,29 +13,38 @@
 │                    Docker Compose                        │
 │                                                          │
 │  ┌──────────────────────┐    ┌──────────────────────┐   │
-│  │   Service: map       │    │   Service: docs      │   │
-│  │   (Route Planner)    │    │   (Documentation)    │   │
+│  │   Service: db        │    │   Service: backend   │   │
+│  │   (PostgreSQL 16)    │    │   (FastAPI)          │   │
 │  │                      │    │                      │   │
-│  │  main.py             │    │  server.py (Flask)   │   │
-│  │    │                 │    │    │                 │   │
-│  │    ├─ route_planner  │    │    ├─ toc.yaml       │   │
-│  │    │    │            │    │    ├─ content/*.md   │   │
-│  │    │    ▼            │    │    ├─ templates/     │   │
-│  │    │  OSRM API       │    │    └─ static/        │   │
-│  │    │                │    │                      │   │
-│  │    ├─ map_generator  │    └──────────────────────┘   │
-│  │    │    │            │               │              │
-│  │    │    ▼            │               ▼              │
-│  │    │  HTML + JS     │         http://localhost:5001 │
-│  │    │  + JSON        │                              │
-│  │    └────┬───────────┘                              │
-│  │         ▼                                          │
-│  │    output/                                         │
-│  │    ├── route.json                                 │
-│  │    ├── route_geometry.json                        │
-│  │    ├── route_map.html                             │
-│  │    └── frontend/index.html                        │
-│  └──────────────────────────────────────────────────┘ │
+│  │  agro_logistics      │    │  main.py             │   │
+│  │  ┌────────┐          │    │    ├─ CRUD API       │   │
+│  │  │ farms  │          │    │    ├─ Solver API     │   │
+│  │  │products│          │    │    └─ Health Check   │   │
+│  │  │buyers  │          │    │                      │   │
+│  │  │orders  │          │    │  SQLAlchemy ORM      │   │
+│  │  │vehicles│          │    │      │               │   │
+│  │  └────────┘          │    │      ▼               │   │
+│  └──────────────────────┘    │  PostgreSQL          │   │
+│         ▲                    │      ▲               │   │
+│         │ HTTP               │      │               │   │
+│  ┌──────────────────────┐    │      │               │   │
+│  │   Service: frontend  │    └──────┘               │   │
+│  │   (React + Vite)     │                           │   │
+│  │                      │                           │   │
+│  │  App.tsx             │                           │   │
+│  │    ├─ Warehouse      │                           │   │
+│  │    ├─ FarmPage       │                           │   │
+│  │    ├─ Buyers         │                           │   │
+│  │    ├─ Vehicles       │                           │   │
+│  │    └─ Routes         │                           │   │
+│  │                      │                           │   │
+│  │  api/client.ts       │                           │   │
+│  │    ├─ productsApi    │                           │   │
+│  │    ├─ buyersApi      │                           │   │
+│  │    ├─ vehiclesApi    │                           │   │
+│  │    ├─ ordersApi      │                           │   │
+│  │    └─ solverApi      │                           │   │
+│  └──────────────────────┘                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -46,66 +55,74 @@
 ```
 Hackaton/
 ├── docker-compose.yml              # Оркестрация сервисов
-├── map/
-│   ├── Dockerfile                  # Образ map-сервиса
-│   ├── .dockerignore
-│   ├── main.py                     # CLI entry point
-│   ├── config.py                   # Константы конфигурации
-│   ├── route_planner.py            # OSRM + fuel calculation
-│   ├── map_generator.py            # Leaflet HTML generation
-│   ├── frontend/
-│   │   └── index.html              # Standalone map viewer
-│   └── output/                     # Выходные данные (gitignored)
-│       ├── route.json
-│       ├── route_geometry.json
-│       ├── route_map.html
-│       └── route_map.js
-├── docs/
-│   ├── Dockerfile                  # Образ docs-сервиса
-│   ├── server.py                   # Flask-сервер документации
-│   ├── toc.yaml                    # Структура оглавления
-│   ├── content/                    # Markdown-файлы
-│   │   ├── tutorials/
-│   │   ├── how-to/
-│   │   ├── reference/
-│   │   └── explanation/
-│   ├── templates/
-│   │   ├── docs.html               # Основной шаблон
-│   │   └── 404.html                # Страница ошибки
-│   └── static/
-│       ├── css/style.css           # Стили
-│       └── js/nav.js               # Навигация
-└── JSON_Statham_agricultural_case1/
-    └── Map/                        # Исходный проект (git repo)
+├── README.md                       # Основная документация
+├── backend/
+│   ├── Dockerfile                  # Образ бэкенда
+│   ├── requirements.txt            # Python-зависимости
+│   └── app/
+│       ├── main.py                 # FastAPI приложение + API endpoints
+│       ├── models.py               # SQLAlchemy модели (Farm, Product, Buyer, Order, Vehicle)
+│       ├── crud.py                 # CRUD операции с БД
+│       ├── database.py             # Подключение к PostgreSQL
+│       └── seed.py                 # Начальные данные
+├── frontend/
+│   ├── Dockerfile                  # Образ фронтенда
+│   ├── package.json                # Node.js-зависимости
+│   ├── vite.config.ts              # Конфигурация Vite
+│   ├── tailwind.config.js          # Конфигурация Tailwind CSS
+│   └── src/
+│       ├── main.tsx                # Точка входа React
+│       ├── App.tsx                 # Роутинг
+│       ├── api/
+│       │   ├── client.ts           # API клиент (REST запросы)
+│       │   └── solver.ts           # Solver API
+│       ├── components/
+│       │   ├── Layout.tsx          # Макет приложения
+│       │   ├── DataTable.tsx       | Таблица данных
+│       │   └── Modal.tsx           | Модальное окно
+│       ├── pages/
+│       │   ├── Warehouse.tsx       # Склад продукции
+│       │   ├── FarmPage.tsx        # Управление хозяйством
+│       │   ├── Buyers.tsx          # Покупатели и заказы
+│       │   ├── Vehicles.tsx        # Транспорт
+│       │   └── Routes.tsx          # Маршруты доставки
+│       ├── types/
+│       │   └── index.ts            # TypeScript типы
+│       └── contexts/
+│           └── ThemeContext.tsx    # Тёмная/светлая тема
+└── docs/
+    ├── Dockerfile                  # Образ документации
+    ├── server.py                   # Flask-сервер документации
+    ├── toc.yaml                    # Структура оглавления
+    ├── content/                    # Markdown-файлы
+    ├── templates/                  # HTML-шаблоны
+    └── static/                     # Статические файлы
 ```
 
 ---
 
 ## Зависимости
 
-### Map-сервис
+### Backend
 
 | Пакет | Версия | Назначение |
 |-------|--------|------------|
-| `requests` | latest | HTTP-клиент для OSRM API |
+| `fastapi` | 0.115.0 | Web-фреймворк |
+| `uvicorn` | 0.30.0 | ASGI сервер |
+| `sqlalchemy` | 2.0.35 | ORM |
+| `psycopg2-binary` | 2.9.9 | PostgreSQL драйвер |
+| `pydantic` | 2.9.0 | Валидация данных |
+| `alembic` | 1.13.0 | Миграции БД |
 
-### Docs-сервис
+### Frontend
 
 | Пакет | Версия | Назначение |
 |-------|--------|------------|
-| `flask` | latest | Web-фреймворк |
-| `pyyaml` | latest | Парсинг toc.yaml |
-| `markdown` | latest | Markdown → HTML |
-
-### Внешние зависимости
-
-| Сервис | URL | Назначение |
-|--------|-----|------------|
-| OSRM Public API | `router.project-osrm.org` | Построение маршрутов |
-| OpenStreetMap | `tile.openstreetmap.org` | Картотайлы |
-| Leaflet.js | `unpkg.com/leaflet` | Библиотека карт |
-| Font Awesome | `cdnjs.cloudflare.com` | Иконки |
-| Highlight.js | `cdnjs.cloudflare.com` | Подсветка кода |
+| `react` | 18.x | UI библиотека |
+| `typescript` | — | Типизация |
+| `tailwindcss` | — | CSS-фреймворк |
+| `vite` | 6.x | Сборщик |
+| `react-router-dom` | — | Роутинг |
 
 ---
 
@@ -113,9 +130,10 @@ Hackaton/
 
 | Сервис | Порт | Протокол |
 |--------|------|----------|
-| docs | `5001` | HTTP |
-
-> **Примечание:** Map-сервис не имеет открытого порта — это CLI-инструмент.
+| Frontend | `80` | HTTP |
+| Backend | `8000` | HTTP |
+| PostgreSQL | `5432` | TCP |
+| Docs | `5001` | HTTP |
 
 ---
 
@@ -123,11 +141,33 @@ Hackaton/
 
 | Volume | Mount | Назначение |
 |--------|-------|------------|
-| `./output:/app/output` | bind | Выходные файлы маршрутов |
+| `pgdata` | `/var/lib/postgresql/data` | Данные PostgreSQL |
+| `./backend/app:/app/app` | bind | Код бэкенда (dev) |
 | `./docs/content:/app/content` | bind | Markdown-файлы (dev) |
 | `./docs/static:/app/static` | bind | Статика (dev) |
 | `./docs/templates:/app/templates` | bind | Шаблоны (dev) |
 
 ---
 
-<< [Параметры конфигурации](/doc/how-to/customize-config) | [API и данные](/doc/reference/api-reference) >>
+## База данных
+
+### Таблицы
+
+| Таблица | Описание | Ключевые поля |
+|---------|----------|---------------|
+| `farms` | Хозяйство (ферма) | id, name, longitude, latitude |
+| `products` | Продукция | id, name, stock_kg, max_delivery_hours |
+| `buyers` | Покупатели | id, name, longitude, latitude |
+| `buyer_orders` | Заказы | product_id, buyer_id, demand_kg, price_per_kg |
+| `vehicles` | Транспорт | id, name, capacity_kg, max_trips, max_stops |
+
+### Связи
+
+```
+Farm 1───* Product
+Buyer 1───* BuyerOrder *───1 Product
+```
+
+---
+
+<< [Параметры конфигурации](/doc/reference/config-reference) | [API и данные](/doc/reference/api-reference) >>

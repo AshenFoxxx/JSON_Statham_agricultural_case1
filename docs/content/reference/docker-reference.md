@@ -9,56 +9,74 @@
 ## docker-compose.yml
 
 ```yaml
-version: "3.9"
+version: '3.8'
 
 services:
-  map:
-    build:
-      context: ./map
-      dockerfile: Dockerfile
-    volumes:
-      - ./output:/app/output
-    working_dir: /app
-
-  docs:
-    build:
-      context: ./docs
-      dockerfile: Dockerfile
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agro_logistics
     ports:
-      - "5001:5001"
+      - "5432:5432"
     volumes:
-      - ./docs/content:/app/content
-      - ./docs/static:/app/static
-      - ./docs/templates:/app/templates
-    working_dir: /app
-    command: python server.py --host 0.0.0.0 --port 5001
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/agro_logistics
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
 ```
 
-### Параметры services.map
+### Параметры services.db
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
-| `build.context` | `./map` | Контекст сборки |
-| `build.dockerfile` | `Dockerfile` | Файл Dockerfile |
-| `volumes` | `./output:/app/output` | Монтирование выходных файлов |
-| `working_dir` | `/app` | Рабочая директория |
+| `image` | `postgres:16-alpine` | Образ PostgreSQL 16 |
+| `POSTGRES_USER` | `postgres` | Имя пользователя |
+| `POSTGRES_PASSWORD` | `postgres` | Пароль |
+| `POSTGRES_DB` | `agro_logistics` | Имя базы данных |
+| `ports` | `5432:5432` | Маппинг порта |
+| `volumes` | `pgdata` | Персистентное хранилище |
 
-### Параметры services.docs
+### Параметры services.backend
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
-| `build.context` | `./docs` | Контекст сборки |
-| `build.dockerfile` | `Dockerfile` | Файл Dockerfile |
-| `ports` | `5001:5001` | Маппинг порта |
-| `volumes` | bind mounts | Hot-reload при разработке |
-| `command` | `python server.py --host 0.0.0.0` | Запуск сервера |
+| `build.context` | `./backend` | Контекст сборки |
+| `ports` | `8000:8000` | Маппинг порта API |
+| `environment` | `DATABASE_URL=...` | Подключение к БД |
+| `depends_on` | `db` | Зависимость от БД |
+
+### Параметры services.frontend
+
+| Параметр | Значение | Описание |
+|----------|----------|----------|
+| `build.context` | `./frontend` | Контекст сборки |
+| `ports` | `80:80` | Маппинг порта веб-интерфейса |
+| `depends_on` | `backend` | Зависимость от бэкенда |
 
 ---
 
-## Map Dockerfile
+## Backend Dockerfile
 
 ```dockerfile
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -67,67 +85,64 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENTRYPOINT ["python", "main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### Базовый образ
 
-`python:3.9-slim` — минимальный образ Python 3.9 (~100MB).
+`python:3.11-slim` — минимальный образ Python 3.11.
 
 ### Слои образа
 
-1. `python:3.9-slim` — базовый образ
-2. Установка `requests` через pip
+1. `python:3.11-slim` — базовый образ
+2. Установка зависимостей через pip
 3. Копирование исходного кода
 
 ---
 
-## Docs Dockerfile
+## Frontend Dockerfile
 
 ```dockerfile
-FROM python:3.9-slim
+FROM node:18-alpine AS builder
 
 WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+COPY package*.json ./
+RUN npm install
 COPY . .
+RUN npm run build
 
-EXPOSE 5001
-
-CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "5001"]
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 ```
 
-### Базовый образ
+### Многоступенчатая сборка
 
-`python:3.9-slim` — минимальный образ Python 3.9.
-
-### Слои образа
-
-1. `python:3.9-slim` — базовый образ
-2. Установка `flask`, `pyyaml`, `markdown`
-3. Копирование кода и шаблонов
+1. **Builder** — Node.js собирает React-приложение
+2. **Nginx** — раздаёт статические файлы
 
 ---
 
 ## .dockerignore
 
-### Для map/
+### Для backend/
 
 ```
 __pycache__/
 *.pyc
-output/
-.git/
+*.egg-info/
+venv/
+.env
 ```
 
-### Для docs/
+### Для frontend/
 
 ```
-__pycache__/
-*.pyc
-.git/
+node_modules/
+dist/
+.env
 ```
 
 ---
@@ -139,7 +154,7 @@ __pycache__/
 ```bash
 docker compose build
 docker compose build --no-cache    # без кэша
-docker compose build map            # один сервис
+docker compose build backend        # один сервис
 ```
 
 ### Запуск
@@ -161,16 +176,18 @@ docker compose down -v --rmi all    # + удалить образы
 ### Логи
 
 ```bash
-docker compose logs -f map
-docker compose logs -f docs
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
 docker compose logs -f              # все сервисы
 ```
 
 ### Exec
 
 ```bash
-docker compose exec map bash
-docker compose exec docs bash
+docker compose exec backend bash
+docker compose exec frontend bash
+docker compose exec db psql -U postgres -d agro_logistics
 ```
 
 ---
@@ -179,9 +196,8 @@ docker compose exec docs bash
 
 | Переменная | Сервис | Описание |
 |-----------|--------|----------|
-| `OSRM_API_URL` | map | URL OSRM API |
-| `FUEL_PRICE` | map | Цена топлива |
-| `FUEL_CONSUMPTION` | map | Расход топлива |
+| `DATABASE_URL` | backend | URL подключения к PostgreSQL |
+| `VITE_API_URL` | frontend | URL бэкенда |
 | `FLASK_ENV` | docs | Режим Flask (`development`) |
 
 ---

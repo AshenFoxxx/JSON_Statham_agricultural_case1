@@ -1,143 +1,233 @@
-# Практическое руководство: Построение маршрута
+# Практическое руководство: Расчёт оптимальных маршрутов
 
 > **Тип:** How-To Guide (практическое руководство)
 > 
-> Задача: как построить маршрут между двумя точками.
+> Задача: как рассчитать оптимальные маршруты доставки продукции.
 
 ---
 
 ## Задача
 
-Построить маршрут для грузовика между двумя географическими точками и получить интерактивную карту.
+Рассчитать оптимальные маршруты доставки продукции от фермы к покупателям с учётом:
+
+- Запасов продукции на складе
+- Запросов покупателей (количество, цена)
+- Доступного транспорта (грузоподъёмность, количество рейсов)
+- Координат фермы и покупателей
 
 ---
 
-## Базовое использование
+## Подготовка данных
+
+Перед расчётом маршрутов необходимо создать данные в системе.
+
+### 1. Создать хозяйство (ферму)
 
 ```bash
-docker compose run map \
-  --from "LON_START,LAT_START" \
-  --to "LON_END,LAT_END"
+curl -X POST http://localhost:8000/api/v1/farm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ООО АгроТех",
+    "longitude": 54.9815,
+    "latitude": 36.2523
+  }'
 ```
 
-**Пример — Москва → Казань:**
+### 2. Добавить продукцию
 
 ```bash
-docker compose run map \
-  --from "55.7558,37.6173" \
-  --to "55.7879,49.1219"
+curl -X POST http://localhost:8000/api/v1/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "strawberry",
+    "name": "Клубника",
+    "stock_kg": 600,
+    "max_delivery_hours": 6
+  }'
+
+curl -X POST http://localhost:8000/api/v1/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "tomato",
+    "name": "Томаты",
+    "stock_kg": 900,
+    "max_delivery_hours": 24
+  }'
+
+curl -X POST http://localhost:8000/api/v1/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "cucumber",
+    "name": "Огурцы",
+    "stock_kg": 700,
+    "max_delivery_hours": 18
+  }'
+```
+
+### 3. Добавить покупателей
+
+```bash
+curl -X POST http://localhost:8000/api/v1/buyers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "buyer-obninsk",
+    "name": "Рынок Обнинск",
+    "longitude": 54.5126,
+    "latitude": 36.5927
+  }'
+
+curl -X POST http://localhost:8000/api/v1/buyers \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "buyer-kaluga",
+    "name": "Сеть Калуга",
+    "longitude": 54.5293,
+    "latitude": 36.2754
+  }'
+```
+
+### 4. Создать заказы для покупателей
+
+```bash
+curl -X POST http://localhost:8000/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "strawberry",
+    "buyer_id": "buyer-obninsk",
+    "demand_kg": 200,
+    "price_per_kg": 160
+  }'
+
+curl -X POST http://localhost:8000/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "tomato",
+    "buyer_id": "buyer-obninsk",
+    "demand_kg": 250,
+    "price_per_kg": 70
+  }'
+```
+
+### 5. Добавить транспорт
+
+```bash
+curl -X POST http://localhost:8000/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "vehicle-a",
+    "name": "Газель А",
+    "capacity_kg": 800,
+    "fuel_consumption_l_per_100km": 10,
+    "fuel_price_rub_per_liter": 62,
+    "max_trips": 2,
+    "max_stops": 3,
+    "available": true
+  }'
 ```
 
 ---
 
-## С кастомными параметрами топлива
+## Расчёт маршрутов через API
+
+### Запрос
 
 ```bash
-docker compose run map \
-  --from "55.7558,37.6173" \
-  --to "59.9343,30.3351" \
-  --fuel-price 65 \
-  --fuel-consumption 40
+curl -X POST http://localhost:8000/api/v1/plan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "products": [
+      {"id": "strawberry", "name": "Клубника", "stock_kg": 600, "max_delivery_hours": 6},
+      {"id": "tomato", "name": "Томаты", "stock_kg": 900, "max_delivery_hours": 24},
+      {"id": "cucumber", "name": "Огурцы", "stock_kg": 700, "max_delivery_hours": 18}
+    ],
+    "buyers": [
+      {"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 54.5126, "latitude": 36.5927},
+      {"id": "buyer-kaluga", "name": "Сеть Калуга", "longitude": 54.5293, "latitude": 36.2754}
+    ],
+    "vehicles": [
+      {"id": "vehicle-a", "name": "Газель А", "capacity_kg": 800, "fuel_consumption_l_per_100km": 10, "fuel_price_rub_per_liter": 62, "max_trips": 2, "max_stops": 3, "available": true}
+    ]
+  }'
 ```
 
-| Аргумент | Описание | По умолчанию |
-|----------|----------|--------------|
-| `--from` | Начальная точка `lon,lat` | **обязательный** |
-| `--to` | Конечная точка `lon,lat` | **обязательный** |
-| `--fuel-price` | Цена топлива, руб/л | `62.0` |
-| `--fuel-consumption` | Расход топлива, л/100км | `35.0` |
-| `--output` | Папка для выходных файлов | `output` |
-
----
-
-## Выходные файлы
-
-После выполнения в папке `output/` появятся:
-
-| Файл | Описание |
-|------|----------|
-| `route.json` | JSON с ключевыми метриками маршрута |
-| `route_geometry.json` | GeoJSON геометрия маршрута |
-| `route_map.html` | Интерактивная карта (Leaflet) |
-| `route_map.js` | JavaScript для карты |
-| `frontend/index.html` | Standalone-просмотрщик |
-
-### route.json
+### Ответ
 
 ```json
 {
-  "distance_km": 708.42,
-  "duration_hours": 8.4,
-  "fuel_liters": 247.95,
-  "fuel_cost_rub": 15372.90
-}
-```
-
-### route_geometry.json
-
-```json
-{
-  "type": "LineString",
-  "coordinates": [
-    [37.6173, 55.7558],
-    [37.7, 55.8],
-    ...
+  "routes": [
+    {
+      "vehicle_id": "vehicle-a",
+      "vehicle_name": "Газель А",
+      "buyer_id": "buyer-obninsk",
+      "buyer_name": "Рынок Обнинск",
+      "product_id": "strawberry",
+      "product_name": "Клубника",
+      "quantity_kg": 200,
+      "distance_km": 45,
+      "travel_time_hours": 1,
+      "cost": 6000
+    }
   ]
 }
 ```
 
 ---
 
-## Просмотр карты
+## Расчёт через веб-интерфейс
 
-### Вариант 1: route_map.html
-
-Откройте `output/route_map.html` в браузере — это полноценная интерактивная карта с тёмной темой.
-
-### Вариант 2: frontend/index.html
-
-Стандарный просмотрщик, который загружает данные из JSON:
-
-```bash
-# Запуск HTTP-сервера для фронтенда
-python -m http.server 8080 --directory output
-```
-
-Откройте `http://localhost:8080/frontend/index.html`.
+1. Откройте **http://localhost:3000/routes**
+2. Убедитесь, что на страницах «Склад», «Покупатели» и «Машины» созданы данные
+3. Нажмите кнопку **«Рассчитать оптимальные маршруты»**
+4. Результат отобразится в таблице маршрутов
 
 ---
 
-## Несколько маршрутов
+## Статистика маршрутов
 
-Запустите команду несколько раз с разными координатами — каждый раз будут созданы новые файлы в `output/`.
+После расчёта система показывает:
 
-```bash
-docker compose run map --from "55.7558,37.6173" --to "55.7879,49.1219"
-docker compose run map --from "55.7879,49.1219" --to "56.8519,60.6122"
-```
+| Метрика | Описание |
+|---------|----------|
+| **Всего груза** | Суммарный вес продукции в маршрутах (кг) |
+| **Общая стоимость** | Суммарная стоимость доставки (₽) |
+| **Общая дистанция** | Суммарное расстояние (км) |
+| **Маршрутов** | Количество рассчитанных маршрутов |
 
 ---
 
 ## Ошибки
 
-### OSRM API не нашёл маршрут
+### Нет данных для расчёта
 
 ```
-RuntimeError: OSRM API не нашёл маршрут
+API error 400: Missing products, buyers, or vehicles
 ```
 
-Проверьте:
-- Координаты указаны в правильном формате `lon,lat`
-- Точки существуют и связаны дорожной сетью
-- Интернет-соединение активно
+Решение: создайте хотя бы по одному продукту, покупателю и транспортному средству.
 
-### Timeout
+### Сервер недоступен
 
 ```
-requests.exceptions.Timeout
+API error 503: Backend is not running
 ```
 
-OSRM Public API может быть медленным. Попробуйте ещё раз.
+Решение: запустите бэкенд:
+
+```bash
+docker compose up -d backend
+```
+
+### Ошибка solver'а
+
+```
+API error 500: Solver calculation failed
+```
+
+Решение: проверьте логи бэкенда:
+
+```bash
+docker compose logs -f backend
+```
 
 ---
 

@@ -20,6 +20,16 @@ docker compose up --build
 
 ---
 
+## Структура сервисов
+
+| Сервис | Описание | Порт | Зависимости |
+|--------|----------|------|-------------|
+| `db` | PostgreSQL 16 | `5432` | — |
+| `backend` | FastAPI + CRUD + Solver | `8000` | `db` |
+| `frontend` | React + Vite | `80` | `backend` |
+
+---
+
 ## Управление сервисами
 
 ### Запуск в фоне
@@ -50,16 +60,23 @@ docker compose up --build -d
 
 ## Управление отдельными сервисами
 
-### Только Docs-сервис
+### Только база данных
 
 ```bash
-docker compose up docs
+docker compose up db
 ```
 
-### Только Map (одноразовый запуск)
+### Только Backend
 
 ```bash
-docker compose run map --from "55.7558,37.6173" --to "59.9343,30.3351"
+docker compose up backend
+```
+
+### Только Frontend (локально)
+
+```bash
+cd frontend
+npm run dev
 ```
 
 ---
@@ -70,11 +87,14 @@ docker compose run map --from "55.7558,37.6173" --to "59.9343,30.3351"
 # Все логи
 docker compose logs -f
 
-# Только map
-docker compose logs -f map
+# Только backend
+docker compose logs -f backend
 
-# Только docs
-docker compose logs -f docs
+# Только frontend
+docker compose logs -f frontend
+
+# Только база данных
+docker compose logs -f db
 ```
 
 ---
@@ -82,11 +102,14 @@ docker compose logs -f docs
 ## Запуск shell внутри контейнера
 
 ```bash
-# Map-сервис
-docker compose exec map bash
+# Backend
+docker compose exec backend bash
 
-# Docs-сервис
-docker compose exec docs bash
+# Frontend
+docker compose exec frontend bash
+
+# База данных
+docker compose exec db psql -U postgres -d agro_logistics
 ```
 
 ---
@@ -97,26 +120,31 @@ docker compose exec docs bash
 docker compose ps
 ```
 
-Вывод:
+Ожидаемый вывод:
 
 ```
-NAME             STATUS       PORTS
-hackaton-docs-1  Up           0.0.0.0:5001->5001/tcp
-hackaton-map-1   Exit 0
+NAME                    STATUS       PORTS
+hackaton-db-1           Up           0.0.0.0:5432->5432/tcp
+hackaton-backend-1      Up           0.0.0.0:8000->8000/tcp
+hackaton-frontend-1     Up           0.0.0.0:80->80/tcp
 ```
-
-> **Примечание:** `map` завершает работу после выполнения команды — это ожидаемое поведение.
 
 ---
 
 ## Проверка API
 
 ```bash
-# Docs-сервис
-curl http://localhost:5001/doc/index
+# Health check
+curl http://localhost:8000/health
 
-# API TOC
-curl http://localhost:5001/api/toc | python -m json.tool
+# Получить список продуктов
+curl http://localhost:8000/api/v1/products
+
+# Получить список покупателей
+curl http://localhost:8000/api/v1/buyers
+
+# Получить список транспорта
+curl http://localhost:8000/api/v1/vehicles
 ```
 
 ---
@@ -152,4 +180,26 @@ docker stats
 
 ---
 
-<< [Построение маршрута](/doc/how-to/build-routes) | [Настройка конфигурации](/doc/how-to/customize-config) >>
+## Локальная разработка
+
+### Backend без Docker
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Frontend без Docker
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+<< [Построение маршрутов](/doc/how-to/build-routes) | [Настройка конфигурации](/doc/how-to/customize-config) >>
