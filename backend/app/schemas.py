@@ -37,15 +37,60 @@ class Vehicle(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     capacity_kg: float = Field(gt=0, description="Грузоподъёмность одного рейса, кг")
-    cost_per_trip: float = Field(ge=0, description="Стоимость одного рейса, руб")
-    max_trips: int = Field(ge=1, le=10, description="Сколько рейсов машина может сделать")
+    cost_per_trip: float = Field(ge=0, description="Стоимость одного выезда, руб. Не зависит от числа остановок")
+    max_trips: int = Field(ge=1, le=10, description="Сколько выездов машина может сделать")
+    max_stops: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description="Сколько покупателей можно объехать за один выезд",
+    )
     available: bool = True
+
+
+class Leg(BaseModel):
+    from_id: str = Field(min_length=1, description="farm или id покупателя")
+    to_id: str = Field(min_length=1, description="farm или id покупателя")
+    hours: float = Field(ge=0, description="Время перегона, ч")
+
+
+class RoutePoint(BaseModel):
+    id: str = Field(min_length=1)
+    longitude: float = Field(ge=-180, le=180)
+    latitude: float = Field(ge=-90, le=90)
+
+
+class RouteRequest(BaseModel):
+    points: list[RoutePoint] = Field(min_length=2)
+    fuel_consumption_l_per_100km: float = Field(default=35, gt=0)
+    fuel_price_rub_per_liter: float = Field(default=62, ge=0)
+
+
+class RouteLegOut(BaseModel):
+    from_id: str
+    to_id: str
+    distance_km: float = Field(ge=0)
+    hours: float = Field(ge=0)
+
+
+class RouteResponse(BaseModel):
+    distance_km: float
+    duration_hours: float
+    fuel_liters: float
+    fuel_cost_rub: float
+    legs: list[RouteLegOut]
+    waypoints: list[RoutePoint]
+    geometry: dict
 
 
 class PlanRequest(BaseModel):
     products: list[Product] = Field(min_length=1)
     buyers: list[Buyer] = Field(min_length=1)
     vehicles: list[Vehicle] = Field(min_length=1)
+    legs: list[Leg] = Field(
+        default_factory=list,
+        description="Перегоны между хозяйством (farm) и покупателями. Без них рейс везёт одному покупателю.",
+    )
 
     @model_validator(mode="after")
     def references_exist(self) -> "PlanRequest":
@@ -60,6 +105,9 @@ class PlanRequest(BaseModel):
             if len(ids) != len(set(ids)):
                 raise ValueError(f"Идентификаторы {label} должны быть уникальными")
 
+        if "farm" in buyer_ids:
+            raise ValueError("Идентификатор farm зарезервирован для хозяйства")
+
         known_products = set(product_ids)
         for buyer in self.buyers:
             unknown = [
@@ -71,6 +119,20 @@ class PlanRequest(BaseModel):
                 raise ValueError(
                     f"У покупателя {buyer.id} неизвестные культуры: {', '.join(unknown)}"
                 )
+
+        known_places = set(buyer_ids) | {"farm"}
+        seen_legs: set[tuple[str, str]] = set()
+        for leg in self.legs:
+            if leg.from_id not in known_places or leg.to_id not in known_places:
+                raise ValueError(
+                    f"Перегон {leg.from_id} -> {leg.to_id} ссылается на неизвестную точку"
+                )
+            if leg.from_id == leg.to_id:
+                raise ValueError(f"Перегон {leg.from_id} ведёт в ту же точку")
+            key = (leg.from_id, leg.to_id)
+            if key in seen_legs:
+                raise ValueError(f"Перегон {leg.from_id} -> {leg.to_id} указан дважды")
+            seen_legs.add(key)
         return self
 
 
@@ -88,11 +150,17 @@ class Shipment(BaseModel):
     quantity_kg: float = Field(ge=0)
 
 
+class Stop(BaseModel):
+    buyer_id: str
+    arrival_hours: float = Field(ge=0, description="Часы с момента выезда с хозяйства")
+    load_kg: float = Field(ge=0, description="Сколько килограммов выгружается здесь")
+
+
 class Trip(BaseModel):
     vehicle_id: str
-    buyer_id: str
-    cost: float = Field(ge=0)
-    load_kg: float = Field(ge=0)
+    stops: list[Stop] = Field(min_length=1)
+    cost: float = Field(ge=0, description="Стоимость этого выезда, руб")
+    load_kg: float = Field(ge=0, description="Суммарная загрузка выезда, кг")
 
 
 class ProductBalance(BaseModel):

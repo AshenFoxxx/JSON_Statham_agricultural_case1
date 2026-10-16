@@ -3,8 +3,8 @@ from app.schemas import PlanRequest
 ASSUMPTIONS = [
     "Срок культуры ограничивает только время в пути до покупателя.",
     "Отсчёт срока начинается в момент отправки. Время на складе не учитывается.",
-    "Один рейс обслуживает одного покупателя.",
-    "Каждый рейс проверяется отдельно. Очередь рейсов одной машины не моделируется.",
+    "Один выезд может объехать нескольких покупателей. Время прибытия складывается из перегонов.",
+    "Каждый выезд проверяется отдельно. Очередь выездов одной машины не моделируется.",
     "Вместимость измеряется в килограммах.",
     "Прибыль = выручка − стоимость рейсов.",
     "Невывезенный объём остаётся остатком. Потеря — только объём, который нельзя доставить ни одному покупателю в срок.",
@@ -93,6 +93,7 @@ def _base() -> dict:
                 "capacity_kg": 800,
                 "cost_per_trip": 6000,
                 "max_trips": 1,
+                "max_stops": 3,
                 "available": True,
             },
             {
@@ -101,6 +102,7 @@ def _base() -> dict:
                 "capacity_kg": 800,
                 "cost_per_trip": 6500,
                 "max_trips": 1,
+                "max_stops": 3,
                 "available": True,
             },
             {
@@ -109,10 +111,37 @@ def _base() -> dict:
                 "capacity_kg": 700,
                 "cost_per_trip": 8000,
                 "max_trips": 1,
+                "max_stops": 3,
                 "available": True,
             },
         ],
+        "legs": _demo_legs(),
     }
+
+
+def _demo_legs() -> list[dict]:
+    """Прямые перегоны от хозяйства и короткие переезды между соседними покупателями."""
+    direct = {
+        "buyer-obninsk": 1,
+        "buyer-kaluga": 4,
+        "buyer-tula": 5.5,
+        "buyer-moscow": 7,
+        "buyer-far": 20,
+    }
+    hops = [
+        ("buyer-obninsk", "buyer-kaluga", 1.2),
+        ("buyer-kaluga", "buyer-tula", 1.5),
+        ("buyer-tula", "buyer-moscow", 2),
+        ("buyer-moscow", "buyer-far", 10),
+    ]
+    legs = [
+        {"from_id": "farm", "to_id": buyer_id, "hours": hours}
+        for buyer_id, hours in direct.items()
+    ]
+    for origin, destination, hours in hops:
+        legs.append({"from_id": origin, "to_id": destination, "hours": hours})
+        legs.append({"from_id": destination, "to_id": origin, "hours": hours})
+    return legs
 
 
 def demo_request() -> PlanRequest:

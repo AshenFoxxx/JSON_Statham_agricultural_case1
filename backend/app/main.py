@@ -1,14 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.demo_data import demo_request
 from app.planning import build_plan
-from app.schemas import PlanRequest, PlanResponse
+from app.routing import RouteError, fetch_route
+from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
 
 app = FastAPI(
     title="Спаси урожай",
     version="0.1.0",
-    description="Принимает культуры, заказы и машины и возвращает план поставок с выручкой, затратами и прибылью.",
+    description="Считает план поставок и маршрут по дорогам. Карта живёт в папке frontend.",
 )
 
 app.add_middleware(
@@ -32,3 +33,16 @@ def demo() -> PlanRequest:
 @app.post("/api/v1/plan", response_model=PlanResponse)
 def plan(body: PlanRequest) -> PlanResponse:
     return build_plan(body)
+
+
+@app.post("/api/v1/route", response_model=RouteResponse)
+def route(body: RouteRequest) -> RouteResponse:
+    points = [(point.id, point.longitude, point.latitude) for point in body.points]
+    try:
+        return fetch_route(
+            points,
+            body.fuel_consumption_l_per_100km,
+            body.fuel_price_rub_per_liter,
+        )
+    except RouteError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
