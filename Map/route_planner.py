@@ -23,7 +23,7 @@ def get_route(from_coords: tuple, to_coords: tuple, fuel_consumption: float = 35
         Словарь с данными маршрута
     """
     coords = f"{from_coords[0]},{from_coords[1]};{to_coords[0]},{to_coords[1]}"
-    url = f"{OSRM_API_URL}/{coords}?overview=simplified&geometries=geojson"
+    url = f"{OSRM_API_URL}/{coords}?overview=full&geometries=geojson"
 
     response = requests.get(url, timeout=30)
     response.raise_for_status()

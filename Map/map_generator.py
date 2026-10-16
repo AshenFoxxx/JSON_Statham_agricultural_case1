@@ -61,6 +61,8 @@ def generate_map_html(route_data: dict, from_coords: tuple, to_coords: tuple, fi
         .leaflet-control-zoom a:hover { background: rgba(30, 41, 59, 0.95) !important; }
         .leaflet-control-attribution { background: rgba(15, 23, 42, 0.8) !important; color: #64748b !important; font-size: 10px !important; }
         .leaflet-control-attribution a { color: #38bdf8 !important; }
+        .coords-panel { position: absolute; bottom: 30px; right: 20px; z-index: 1000; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 12px 16px; font-size: 12px; color: #94a3b8; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .coords-panel span { color: #38bdf8; }
     </style>
 </head>
 <body>
@@ -136,11 +138,16 @@ const routeCoords = data.coords;
 const routePath = routeCoords.map(c => [c[1], c[0]]);
 
 // Инициализация карты
-const map = L.map('map').setView([data.startLat, data.startLng], 6);
+const map = L.map('map', {
+    center: [data.startLat, data.startLng],
+    zoom: 6,
+    zoomControl: true
+});
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}', {
-    attribution: '&copy; OpenStreetMap',
-    maxZoom: 18
+// Стандартная карта OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
 }).addTo(map);
 
 // Кастомные маркеры
@@ -171,6 +178,14 @@ L.polyline(routePath, {
 // Автоподгонка
 const bounds = L.latLngBounds(routePath);
 map.fitBounds(bounds, { padding: [80, 80] });
+
+// Отслеживание координат курсора
+const cursorCoordsEl = document.getElementById('cursor-coords');
+map.on('mousemove', function(e) {
+    if (cursorCoordsEl) {
+        cursorCoordsEl.textContent = e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
+    }
+});
 """
 
     # Сохраняем JS рядом с HTML
