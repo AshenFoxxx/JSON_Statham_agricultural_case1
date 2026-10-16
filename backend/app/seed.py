@@ -38,8 +38,8 @@ def seed_db(db: Session):
     crud.create_order(db, "cucumber", "buyer-moscow", 250, 90)
 
     # Машины
-    crud.create_vehicle(db, "vehicle-a", "Газель А", 800, 10, 60, 2, 3, True)
-    crud.create_vehicle(db, "vehicle-b", "Газель Б", 800, 11, 60, 2, 3, True)
+    crud.create_vehicle(db, "vehicle-a", "Газель А", 800, 10, 60, 1, 3, True)
+    crud.create_vehicle(db, "vehicle-b", "Газель Б", 800, 11, 60, 1, 3, True)
     crud.create_vehicle(db, "vehicle-c", "Рефрижератор", 700, 15, 60, 1, 2, True)
 
     db.commit()
