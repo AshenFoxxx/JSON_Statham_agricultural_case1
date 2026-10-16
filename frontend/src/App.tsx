@@ -5,6 +5,7 @@ import Buyers from './pages/Buyers'
 import Vehicles from './pages/Vehicles'
 import RoutesPage from './pages/Routes'
 import FarmPage from './pages/FarmPage'
+import Privacy from './pages/Privacy'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="buyers" element={<Buyers />} />
           <Route path="vehicles" element={<Vehicles />} />
           <Route path="routes" element={<RoutesPage />} />
+          <Route path="privacy" element={<Privacy />} />
         </Route>
       </Routes>
     </BrowserRouter>
