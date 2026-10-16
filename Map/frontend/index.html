@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Маршрут грузовика</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            min-width: 300px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .info-panel h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #f8fafc;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            padding-bottom: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #38bdf8;
+        }
+
+        .fuel-highlight {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(139, 92, 246, 0.1));
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .fuel-highlight .info-value {
+            color: #a78bfa;
+            font-size: 20px;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.95);
+            color: #e2e8f0;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 16px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-panel">
+        <h2>&#128666; Маршрут грузовика</h2>
+        <div class="info-item">
+            <span class="info-label">Расстояние</span>
+            <span class="info-value" id="distance">...</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Время в пути</span>
+            <span class="info-value" id="duration">...</span>
+        </div>
+        <div class="fuel-highlight">
+            <div class="info-item">
+                <span class="info-label">Расход топлива</span>
+                <span class="info-value" id="fuel">...</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Стоимость топлива</span>
+                <span class="info-value" id="cost">...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Данные маршрута будут загружены из JSON
+        let routeData = null;
+        let fromCoords = null;
+        let toCoords = null;
+
+        const map = L.map('map').setView([0, 0], 6);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        const startIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background:#22c55e;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+        });
+
+        const endIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+        });
+
+        // Загрузка данных маршрута
+        Promise.all([
+            fetch('route_geometry.json').then(r => r.json()),
+            fetch('route.json').then(r => r.json())
+        ])
+        .then(([geometry, data]) => {
+            routeData = data;
+            
+            // Обновляем панель информации
+            document.getElementById('distance').textContent = data.distance_km + ' км';
+            document.getElementById('duration').textContent = data.duration_hours.toFixed(1) + ' ч';
+            document.getElementById('fuel').textContent = data.fuel_liters + ' л';
+            document.getElementById('cost').textContent = data.fuel_cost_rub.toFixed(0) + ' руб';
+
+            // Рисуем маршрут
+            L.geoJSON(geometry, {
+                style: {
+                    color: '#38bdf8',
+                    weight: 5,
+                    opacity: 0.8,
+                    lineJoin: 'round'
+                }
+            }).addTo(map);
+
+            const bounds = L.geoJSON(geometry).getBounds();
+            map.fitBounds(bounds, { padding: [60, 60] });
+        })
+        .catch(error => console.error('Ошибка загрузки данных:', error));
+    </script>
+</body>
+</html>
