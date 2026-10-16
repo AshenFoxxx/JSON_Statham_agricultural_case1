@@ -16,6 +16,7 @@ def _payload() -> dict:
                 "id": "near",
                 "name": "Ближний",
                 "travel_time_hours": 2,
+                "travel_distance_km": 10,
                 "orders": [
                     {"product_id": "berry", "demand_kg": 100, "price_per_kg": 10},
                     {"product_id": "apple", "demand_kg": 50, "price_per_kg": 1},
@@ -25,6 +26,7 @@ def _payload() -> dict:
                 "id": "far",
                 "name": "Дальний",
                 "travel_time_hours": 10,
+                "travel_distance_km": 100,
                 "orders": [
                     {"product_id": "berry", "demand_kg": 100, "price_per_kg": 100},
                     {"product_id": "apple", "demand_kg": 100, "price_per_kg": 8},
@@ -36,7 +38,8 @@ def _payload() -> dict:
                 "id": "truck",
                 "name": "Газель",
                 "capacity_kg": 100,
-                "cost_per_trip": 50,
+                "fuel_consumption_l_per_100km": 10,
+                "fuel_price_rub_per_liter": 50,
                 "max_trips": 1,
                 "available": True,
             }
@@ -73,7 +76,8 @@ def test_plan_uses_request_prices() -> None:
             "quantity_kg": 100,
         }
     ]
-    assert costly.json()["profit"] == 1950
+    assert costly.json()["transport_cost"] == 500
+    assert costly.json()["profit"] == 1500
 
 
 def test_plan_respects_stock_demand_capacity_and_time() -> None:
@@ -114,6 +118,14 @@ def test_plan_respects_stock_demand_capacity_and_time() -> None:
         assert trip["load_kg"] <= vehicles[trip["vehicle_id"]]["capacity_kg"] + 1e-6
         assert len(trip["stops"]) <= vehicles[trip["vehicle_id"]]["max_stops"]
         assert abs(sum(stop["load_kg"] for stop in trip["stops"]) - trip["load_kg"]) < 1e-6
+        vehicle = vehicles[trip["vehicle_id"]]
+        expected_cost = (
+            trip["distance_km"]
+            / 100
+            * vehicle["fuel_consumption_l_per_100km"]
+            * vehicle["fuel_price_rub_per_liter"]
+        )
+        assert abs(trip["cost"] - round(expected_cost, 2)) < 0.02
     assert body["profit"] == round(body["revenue"] - body["transport_cost"], 2)
 
 
@@ -139,30 +151,70 @@ def test_one_trip_serves_two_buyers() -> None:
             "id": "near",
             "name": "Ближний",
             "travel_time_hours": 1,
+            "travel_distance_km": 10,
             "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
         },
         {
             "id": "next",
             "name": "Следующий",
             "travel_time_hours": 4,
+            "travel_distance_km": 40,
             "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
         },
     ]
     payload["vehicles"][0]["capacity_kg"] = 100
     payload["vehicles"][0]["max_stops"] = 2
     payload["legs"] = [
-        {"from_id": "farm", "to_id": "near", "hours": 1},
-        {"from_id": "near", "to_id": "next", "hours": 1},
-        {"from_id": "farm", "to_id": "next", "hours": 4},
+        {"from_id": "farm", "to_id": "near", "hours": 1, "distance_km": 10},
+        {"from_id": "near", "to_id": "next", "hours": 1, "distance_km": 10},
+        {"from_id": "farm", "to_id": "next", "hours": 4, "distance_km": 40},
     ]
     response = client.post("/api/v1/plan", json=payload)
     assert response.status_code == 200
     body = response.json()
-    assert body["profit"] == 750
+    assert body["profit"] == 700
     assert len(body["trips"]) == 1
     assert [stop["buyer_id"] for stop in body["trips"][0]["stops"]] == ["near", "next"]
-    assert body["trips"][0]["cost"] == 50
+    assert body["trips"][0]["distance_km"] == 20
+    assert body["trips"][0]["cost"] == 100
     assert sorted(item["buyer_id"] for item in body["shipments"]) == ["near", "next"]
+
+
+def test_extra_kilometers_drop_unprofitable_stop() -> None:
+    payload = _payload()
+    payload["products"] = [
+        {"id": "berry", "name": "Ягода", "stock_kg": 80, "max_delivery_hours": 5}
+    ]
+    payload["buyers"] = [
+        {
+            "id": "near",
+            "name": "Ближний",
+            "travel_time_hours": 1,
+            "travel_distance_km": 10,
+            "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
+        },
+        {
+            "id": "next",
+            "name": "Следующий",
+            "travel_time_hours": 4,
+            "travel_distance_km": 210,
+            "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
+        },
+    ]
+    payload["vehicles"][0]["capacity_kg"] = 100
+    payload["vehicles"][0]["max_stops"] = 2
+    payload["legs"] = [
+        {"from_id": "farm", "to_id": "near", "hours": 1, "distance_km": 10},
+        {"from_id": "near", "to_id": "next", "hours": 1, "distance_km": 200},
+        {"from_id": "farm", "to_id": "next", "hours": 4, "distance_km": 210},
+    ]
+    response = client.post("/api/v1/plan", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert [stop["buyer_id"] for stop in body["trips"][0]["stops"]] == ["near"]
+    assert body["trips"][0]["distance_km"] == 10
+    assert body["trips"][0]["cost"] == 50
+    assert body["profit"] == 350
 
 
 def test_plan_rejects_unknown_product() -> None:

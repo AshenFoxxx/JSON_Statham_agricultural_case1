@@ -23,6 +23,10 @@ class Buyer(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     travel_time_hours: float = Field(ge=0, description="Время в пути от хозяйства, ч")
+    travel_distance_km: float = Field(
+        ge=0,
+        description="Километры напрямую от хозяйства. Используются, только если список legs пуст.",
+    )
     orders: list[BuyerOrder] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -37,7 +41,8 @@ class Vehicle(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     capacity_kg: float = Field(gt=0, description="Грузоподъёмность одного рейса, кг")
-    cost_per_trip: float = Field(ge=0, description="Стоимость одного выезда, руб. Не зависит от числа остановок")
+    fuel_consumption_l_per_100km: float = Field(gt=0, description="Расход топлива, л/100 км")
+    fuel_price_rub_per_liter: float = Field(ge=0, description="Цена топлива, руб/л")
     max_trips: int = Field(ge=1, le=10, description="Сколько выездов машина может сделать")
     max_stops: int = Field(
         default=1,
@@ -52,6 +57,7 @@ class Leg(BaseModel):
     from_id: str = Field(min_length=1, description="farm или id покупателя")
     to_id: str = Field(min_length=1, description="farm или id покупателя")
     hours: float = Field(ge=0, description="Время перегона, ч")
+    distance_km: float = Field(ge=0, description="Длина перегона, км")
 
 
 class RoutePoint(BaseModel):
@@ -159,7 +165,8 @@ class Stop(BaseModel):
 class Trip(BaseModel):
     vehicle_id: str
     stops: list[Stop] = Field(min_length=1)
-    cost: float = Field(ge=0, description="Стоимость этого выезда, руб")
+    distance_km: float = Field(ge=0, description="Сумма километров перегонов этого выезда")
+    cost: float = Field(ge=0, description="Топливо этого выезда, руб")
     load_kg: float = Field(ge=0, description="Суммарная загрузка выезда, кг")
 
 

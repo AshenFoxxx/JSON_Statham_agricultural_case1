@@ -4,9 +4,10 @@ ASSUMPTIONS = [
     "Срок культуры ограничивает только время в пути до покупателя.",
     "Отсчёт срока начинается в момент отправки. Время на складе не учитывается.",
     "Один выезд может объехать нескольких покупателей. Время прибытия складывается из перегонов.",
+    "Стоимость выезда — топливо по километрам маршрута: (км / 100) × расход × цена литра.",
     "Каждый выезд проверяется отдельно. Очередь выездов одной машины не моделируется.",
     "Вместимость измеряется в килограммах.",
-    "Прибыль = выручка − стоимость рейсов.",
+    "Прибыль = выручка − стоимость топлива.",
     "Невывезенный объём остаётся остатком. Потеря — только объём, который нельзя доставить ни одному покупателю в срок.",
 ]
 
@@ -39,6 +40,7 @@ def _base() -> dict:
                 "id": "buyer-obninsk",
                 "name": "Рынок Обнинск",
                 "travel_time_hours": 1,
+                "travel_distance_km": 50,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 200, "price_per_kg": 160},
                     {"product_id": "tomato", "demand_kg": 250, "price_per_kg": 70},
@@ -49,6 +51,7 @@ def _base() -> dict:
                 "id": "buyer-kaluga",
                 "name": "Сеть Калуга",
                 "travel_time_hours": 4,
+                "travel_distance_km": 200,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 250, "price_per_kg": 210},
                     {"product_id": "tomato", "demand_kg": 200, "price_per_kg": 85},
@@ -59,6 +62,7 @@ def _base() -> dict:
                 "id": "buyer-tula",
                 "name": "Опт Тула",
                 "travel_time_hours": 5.5,
+                "travel_distance_km": 275,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 180, "price_per_kg": 190},
                     {"product_id": "tomato", "demand_kg": 300, "price_per_kg": 75},
@@ -69,6 +73,7 @@ def _base() -> dict:
                 "id": "buyer-moscow",
                 "name": "Рестораны Москва",
                 "travel_time_hours": 7,
+                "travel_distance_km": 350,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 300, "price_per_kg": 280},
                     {"product_id": "tomato", "demand_kg": 400, "price_per_kg": 120},
@@ -79,6 +84,7 @@ def _base() -> dict:
                 "id": "buyer-far",
                 "name": "Дальний опт",
                 "travel_time_hours": 20,
+                "travel_distance_km": 1000,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 200, "price_per_kg": 300},
                     {"product_id": "tomato", "demand_kg": 350, "price_per_kg": 140},
@@ -91,7 +97,8 @@ def _base() -> dict:
                 "id": "vehicle-a",
                 "name": "Газель А",
                 "capacity_kg": 800,
-                "cost_per_trip": 6000,
+                "fuel_consumption_l_per_100km": 15,
+                "fuel_price_rub_per_liter": 60,
                 "max_trips": 1,
                 "max_stops": 3,
                 "available": True,
@@ -100,7 +107,8 @@ def _base() -> dict:
                 "id": "vehicle-b",
                 "name": "Газель Б",
                 "capacity_kg": 800,
-                "cost_per_trip": 6500,
+                "fuel_consumption_l_per_100km": 18,
+                "fuel_price_rub_per_liter": 60,
                 "max_trips": 1,
                 "max_stops": 3,
                 "available": True,
@@ -109,7 +117,8 @@ def _base() -> dict:
                 "id": "vehicle-c",
                 "name": "Рефрижератор",
                 "capacity_kg": 700,
-                "cost_per_trip": 8000,
+                "fuel_consumption_l_per_100km": 25,
+                "fuel_price_rub_per_liter": 70,
                 "max_trips": 1,
                 "max_stops": 3,
                 "available": True,
@@ -122,25 +131,29 @@ def _base() -> dict:
 def _demo_legs() -> list[dict]:
     """Прямые перегоны от хозяйства и короткие переезды между соседними покупателями."""
     direct = {
-        "buyer-obninsk": 1,
-        "buyer-kaluga": 4,
-        "buyer-tula": 5.5,
-        "buyer-moscow": 7,
-        "buyer-far": 20,
+        "buyer-obninsk": (1, 50),
+        "buyer-kaluga": (4, 200),
+        "buyer-tula": (5.5, 275),
+        "buyer-moscow": (7, 350),
+        "buyer-far": (20, 1000),
     }
     hops = [
-        ("buyer-obninsk", "buyer-kaluga", 1.2),
-        ("buyer-kaluga", "buyer-tula", 1.5),
-        ("buyer-tula", "buyer-moscow", 2),
-        ("buyer-moscow", "buyer-far", 10),
+        ("buyer-obninsk", "buyer-kaluga", 1.2, 60),
+        ("buyer-kaluga", "buyer-tula", 1.5, 75),
+        ("buyer-tula", "buyer-moscow", 2, 100),
+        ("buyer-moscow", "buyer-far", 10, 500),
     ]
     legs = [
-        {"from_id": "farm", "to_id": buyer_id, "hours": hours}
-        for buyer_id, hours in direct.items()
+        {"from_id": "farm", "to_id": buyer_id, "hours": hours, "distance_km": distance_km}
+        for buyer_id, (hours, distance_km) in direct.items()
     ]
-    for origin, destination, hours in hops:
-        legs.append({"from_id": origin, "to_id": destination, "hours": hours})
-        legs.append({"from_id": destination, "to_id": origin, "hours": hours})
+    for origin, destination, hours, distance_km in hops:
+        legs.append(
+            {"from_id": origin, "to_id": destination, "hours": hours, "distance_km": distance_km}
+        )
+        legs.append(
+            {"from_id": destination, "to_id": origin, "hours": hours, "distance_km": distance_km}
+        )
     return legs
 
 

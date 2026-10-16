@@ -7,6 +7,11 @@ class RouteError(Exception):
     """OSRM не ответил или не нашёл маршрут."""
 
 
+def fuel_cost_rub(distance_km: float, consumption_l_per_100km: float, price_rub_per_liter: float) -> float:
+    """Стоимость топлива: (км / 100) × расход × цена литра."""
+    return (distance_km / 100.0) * consumption_l_per_100km * price_rub_per_liter
+
+
 def fetch_route(
     points: list[tuple[str, float, float]],
     fuel_consumption: float = 35.0,
@@ -62,7 +67,7 @@ def process_route(
         "distance_km": round(distance_km, 2),
         "duration_hours": round(duration_hours, 2),
         "fuel_liters": round(fuel_liters, 2),
-        "fuel_cost_rub": round(fuel_liters * fuel_price, 2),
+        "fuel_cost_rub": round(fuel_cost_rub(distance_km, fuel_consumption, fuel_price), 2),
         "legs": legs,
         "waypoints": [
             {"id": point_id, "longitude": lon, "latitude": lat}

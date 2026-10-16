@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import pulp
 
 from app.demo_data import ASSUMPTIONS
+from app.routing import fuel_cost_rub
 from app.schemas import (
     PlanRequest,
     PlanResponse,
@@ -23,6 +24,7 @@ FARM = "farm"
 class Route:
     stops: tuple[str, ...]
     arrival: dict[str, float]
+    distance_km: float
 
 
 def solve_plan(request: PlanRequest) -> PlanResponse:
@@ -148,11 +150,19 @@ def solve_plan(request: PlanRequest) -> PlanResponse:
         buyer_id = vehicle_routes[key[2]].stops[key[3]]
         price = orders[(buyer_id, products[key[4]].id)].price_per_kg
         revenue_expr.append(price * var)
-    cost_expr = [
-        vehicle.cost_per_trip * flag
-        for (vehicle_index, trip_index, route_index), flag in assign.items()
-        for vehicle in [vehicles[vehicle_index]]
-    ]
+    cost_expr = []
+    for (vehicle_index, _trip_index, route_index), flag in assign.items():
+        vehicle = vehicles[vehicle_index]
+        vehicle_routes = [route for route in all_routes if len(route.stops) <= vehicle.max_stops]
+        route = vehicle_routes[route_index]
+        cost_expr.append(
+            fuel_cost_rub(
+                route.distance_km,
+                vehicle.fuel_consumption_l_per_100km,
+                vehicle.fuel_price_rub_per_liter,
+            )
+            * flag
+        )
     problem += pulp.lpSum(revenue_expr) - pulp.lpSum(cost_expr)
 
     status_code = problem.solve(pulp.PULP_CBC_CMD(msg=False))
@@ -214,7 +224,15 @@ def solve_plan(request: PlanRequest) -> PlanResponse:
                     Trip(
                         vehicle_id=vehicle.id,
                         stops=stops,
-                        cost=round(vehicle.cost_per_trip, 2),
+                        distance_km=round(route.distance_km, 2),
+                        cost=round(
+                            fuel_cost_rub(
+                                route.distance_km,
+                                vehicle.fuel_consumption_l_per_100km,
+                                vehicle.fuel_price_rub_per_liter,
+                            ),
+                            2,
+                        ),
                         load_kg=round(total_load, 3),
                     )
                 )
@@ -239,22 +257,28 @@ def solve_plan(request: PlanRequest) -> PlanResponse:
     )
 
 
-def build_graph(request: PlanRequest) -> dict[tuple[str, str], float]:
+def build_graph(request: PlanRequest) -> dict[tuple[str, str], tuple[float, float]]:
+    """Перегон: (часы, километры). Без legs берётся прямая дорога от хозяйства."""
     if request.legs:
-        return {(leg.from_id, leg.to_id): leg.hours for leg in request.legs}
-    return {(FARM, buyer.id): buyer.travel_time_hours for buyer in request.buyers}
+        return {
+            (leg.from_id, leg.to_id): (leg.hours, leg.distance_km) for leg in request.legs
+        }
+    return {
+        (FARM, buyer.id): (buyer.travel_time_hours, buyer.travel_distance_km)
+        for buyer in request.buyers
+    }
 
 
 def enumerate_routes(
     buyer_ids: list[str],
-    graph: dict[tuple[str, str], float],
+    graph: dict[tuple[str, str], tuple[float, float]],
     max_stops: int,
 ) -> list[Route]:
     found: list[Route] = []
 
-    def walk(path: list[str], arrival: dict[str, float]) -> None:
+    def walk(path: list[str], arrival: dict[str, float], distance_km: float) -> None:
         if path:
-            found.append(Route(tuple(path), dict(arrival)))
+            found.append(Route(tuple(path), dict(arrival), distance_km))
         if len(path) >= max_stops:
             return
         last = path[-1] if path else FARM
@@ -265,14 +289,15 @@ def enumerate_routes(
             hop = graph.get((last, buyer_id))
             if hop is None:
                 continue
+            hop_hours, hop_km = hop
             path.append(buyer_id)
-            arrival[buyer_id] = elapsed + hop
-            walk(path, arrival)
+            arrival[buyer_id] = elapsed + hop_hours
+            walk(path, arrival, distance_km + hop_km)
             path.pop()
             del arrival[buyer_id]
 
     if max_stops >= 1:
-        walk([], {})
+        walk([], {}, 0.0)
     return found
 
 

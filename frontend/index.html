@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Маршрут грузовика</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.5.0/ol.css" />
+    <script src="https://cdn.jsdelivr.net/npm/ol@10.5.0/dist/ol.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e1a; color: #e2e8f0; }
@@ -26,8 +26,7 @@
         .info-label { color: #94a3b8; font-size: 13px; }
         .info-value { color: #38bdf8; font-weight: 600; }
         .error { color: #fca5a5; font-size: 13px; margin-top: 8px; }
-        .leaflet-popup-content-wrapper { background: rgba(15, 23, 42, 0.95); color: #e2e8f0; border-radius: 12px; }
-        .leaflet-popup-tip { background: rgba(15, 23, 42, 0.95); }
+        .popup { background: rgba(15, 23, 42, 0.95); color: #e2e8f0; border-radius: 8px; padding: 6px 10px; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -48,28 +47,52 @@ tula, 37.6173, 54.1930</textarea>
         <div class="info-item"><span class="info-label">Стоимость топлива</span><span class="info-value" id="cost">—</span></div>
     </div>
     <script>
-        const map = L.map('map', { zoomControl: true }).setView([55.1, 36.6], 8);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
-
-        let drawn = [];
-
-        function clearMap() {
-            drawn.forEach(layer => map.removeLayer(layer));
-            drawn = [];
-        }
-
-        function marker(lat, lng, color, title) {
-            const icon = L.divIcon({
-                className: '',
-                html: '<div style="background:' + color + ';width:18px;height:18px;border-radius:50%;border:3px solid white;"></div>',
-                iconSize: [18, 18],
-                iconAnchor: [9, 9]
-            });
-            return L.marker([lat, lng], { icon }).addTo(map).bindPopup(title);
-        }
+        const routeSource = new ol.source.Vector();
+        const popupEl = document.createElement('div');
+        popupEl.className = 'popup';
+        const popup = new ol.Overlay({ element: popupEl, offset: [0, -14], positioning: 'bottom-center' });
+        const map = new ol.Map({
+            target: 'map',
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.XYZ({
+                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                        attributions: 'Tiles © Esri'
+                    })
+                }),
+                new ol.layer.Vector({
+                    source: routeSource,
+                    style: function (feature) {
+                        if (feature.get('kind') === 'line') {
+                            return new ol.style.Style({
+                                stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 })
+                            });
+                        }
+                        return new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 8,
+                                fill: new ol.style.Fill({ color: feature.get('color') }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 })
+                            })
+                        });
+                    }
+                })
+            ],
+            overlays: [popup],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([36.6, 55.1]),
+                zoom: 8
+            })
+        });
+        map.on('click', function (event) {
+            const feature = map.forEachFeatureAtPixel(event.pixel, function (item) { return item; });
+            if (!feature || feature.get('kind') !== 'point') {
+                popup.setPosition(undefined);
+                return;
+            }
+            popupEl.textContent = feature.get('name');
+            popup.setPosition(feature.getGeometry().getCoordinates());
+        });
 
         function parsePoints(text) {
             return text.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
@@ -92,15 +115,23 @@ tula, 37.6173, 54.1930</textarea>
                 if (!response.ok) {
                     throw new Error(data.detail || 'Бэкенд не построил маршрут');
                 }
-                clearMap();
-                drawn.push(L.geoJSON(data.geometry, {
-                    style: { color: '#38bdf8', weight: 6, opacity: 0.9 }
-                }).addTo(map));
+                routeSource.clear();
+                popup.setPosition(undefined);
+                const line = new ol.format.GeoJSON().readGeometry(data.geometry, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection: 'EPSG:3857'
+                });
+                routeSource.addFeature(new ol.Feature({ geometry: line, kind: 'line' }));
                 data.waypoints.forEach((point, index) => {
                     const color = index === 0 ? '#22c55e' : (index === data.waypoints.length - 1 ? '#ef4444' : '#fbbf24');
-                    drawn.push(marker(point.latitude, point.longitude, color, point.id));
+                    routeSource.addFeature(new ol.Feature({
+                        geometry: new ol.geom.Point(ol.proj.fromLonLat([point.longitude, point.latitude])),
+                        kind: 'point',
+                        name: point.id,
+                        color: color
+                    }));
                 });
-                map.fitBounds(L.geoJSON(data.geometry).getBounds(), { padding: [80, 80] });
+                map.getView().fit(routeSource.getExtent(), { padding: [80, 80, 80, 80], maxZoom: 12 });
                 document.getElementById('distance').textContent = data.distance_km + ' км';
                 document.getElementById('duration').textContent = data.duration_hours.toFixed(1) + ' ч';
                 document.getElementById('fuel').textContent = data.fuel_liters + ' л';
