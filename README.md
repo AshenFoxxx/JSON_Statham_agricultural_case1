@@ -283,7 +283,3 @@ docker-compose down
 | Frontend   | 80    | React приложение      |
 | Backend    | 8000  | FastAPI API           |
 | PostgreSQL | 5432  | База данных           |
-
-## 📝 Лицензия
-
-MIT
