@@ -1,18 +1,18 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
-import Suppliers from './pages/Suppliers'
-import Drivers from './pages/Drivers'
 import Warehouse from './pages/Warehouse'
+import Buyers from './pages/Buyers'
+import Vehicles from './pages/Vehicles'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Suppliers />} />
-          <Route path="suppliers" element={<Suppliers />} />
-          <Route path="drivers" element={<Drivers />} />
+          <Route index element={<Warehouse />} />
           <Route path="warehouse" element={<Warehouse />} />
+          <Route path="buyers" element={<Buyers />} />
+          <Route path="vehicles" element={<Vehicles />} />
         </Route>
       </Routes>
     </BrowserRouter>

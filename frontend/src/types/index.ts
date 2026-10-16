@@ -1,36 +1,30 @@
-export interface Supplier {
-  id: number
+export interface Product {
+  id: string
   name: string
-  contact: string
-  phone: string
-  email: string
-  address: string
-  coordinates: { lat: number; lng: number }
-  preferences: string[]
-  capacity: number
-  rating: number
+  stock_kg: number
+  max_delivery_hours: number
 }
 
-export interface Driver {
-  id: number
-  name: string
-  license: string
-  phone: string
-  email: string
-  vehicleType: string
-  experience: number
-  rating: number
-  status: 'active' | 'inactive' | 'on-leave'
+export interface BuyerOrder {
+  product_id: string
+  demand_kg: number
+  price_per_kg: number
 }
 
-export interface Warehouse {
-  id: number
+export interface Buyer {
+  id: string
   name: string
-  address: string
   coordinates: { lat: number; lng: number }
-  capacity: number
-  currentStock: number
-  products: string[]
-  temperature: string
-  manager: string
+  travel_time_hours: number
+  orders: BuyerOrder[]
+}
+
+export interface Vehicle {
+  id: string
+  name: string
+  capacity_kg: number
+  cost_per_trip: number
+  max_trips: number
+  fuel_consumption_l_per_100km: number
+  available: boolean
 }

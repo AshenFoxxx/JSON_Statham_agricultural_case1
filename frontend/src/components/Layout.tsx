@@ -2,9 +2,9 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 
 const navItems = [
-  { path: '/suppliers', label: 'Поставщики', icon: '📦' },
-  { path: '/drivers', label: 'Водители', icon: '🚛' },
   { path: '/warehouse', label: 'Склад', icon: '🏭' },
+  { path: '/buyers', label: 'Покупатели', icon: '🛒' },
+  { path: '/vehicles', label: 'Машины', icon: '🚛' },
 ]
 
 export default function Layout() {
