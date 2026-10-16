@@ -1,4 +1,8 @@
+from ortools.sat.python import cp_model
+
 from app.routing import process_route, process_table
+from app.solver_cp_sat import _status_from_cpsat
+from app.schemas import SolverStatus
 
 
 def test_osrm_response_becomes_plan_legs() -> None:
@@ -34,3 +38,13 @@ def test_osrm_table_becomes_hours_and_kilometers() -> None:
     )
     assert graph[("farm", "kaluga")] == (1.0, 10.0)
     assert ("kaluga", "farm") not in graph
+
+
+def test_cpsat_feasible_is_not_called_optimal() -> None:
+    status, message = _status_from_cpsat(cp_model.FEASIBLE)
+    assert status == SolverStatus.FEASIBLE
+    assert "оптимум" in message.lower()
+    status, _message = _status_from_cpsat(cp_model.OPTIMAL)
+    assert status == SolverStatus.OPTIMAL
+    status, _message = _status_from_cpsat(cp_model.UNKNOWN)
+    assert status == SolverStatus.NOT_SOLVED

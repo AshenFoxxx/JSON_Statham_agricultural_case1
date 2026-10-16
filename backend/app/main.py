@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
 
-from app.demo_data import demo_fleet_request, demo_request
+from app.demo_data import demo_fleet_request, demo_large_request, demo_request
 from app.planning import build_plan
 from app.routing import RouteError, fetch_route
 from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
@@ -37,6 +37,11 @@ def demo() -> PlanRequest:
 @app.get("/api/v1/demo/fleet", response_model=PlanRequest)
 def demo_fleet() -> PlanRequest:
     return demo_fleet_request()
+
+
+@app.get("/api/v1/demo/large", response_model=PlanRequest)
+def demo_large() -> PlanRequest:
+    return demo_large_request()
 
 
 @app.post("/api/v1/plan", response_model=PlanResponse)

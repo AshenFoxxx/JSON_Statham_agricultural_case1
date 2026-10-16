@@ -46,7 +46,12 @@ class Vehicle(BaseModel):
     capacity_kg: float = Field(gt=0, description="Грузоподъёмность одного рейса, кг")
     fuel_consumption_l_per_100km: float = Field(gt=0, description="Расход топлива, л/100 км")
     fuel_price_rub_per_liter: float = Field(ge=0, description="Цена топлива, руб/л")
-    max_trips: int = Field(ge=1, le=10, description="Сколько выездов машина может сделать")
+    max_trips: int = Field(
+        default=1,
+        ge=1,
+        le=1,
+        description="Один выезд со склада. Второй круг не планируется.",
+    )
     max_stops: int = Field(
         default=1,
         ge=1,

@@ -18,7 +18,7 @@
         }
         h2 { font-size: 16px; margin-bottom: 12px; }
         label { display: block; font-size: 12px; color: #94a3b8; margin: 10px 0 4px; }
-        input, button {
+        input, button, select {
             width: 100%; border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.2);
             background: #0f172a; color: #e2e8f0; padding: 8px 10px;
         }
@@ -33,12 +33,13 @@
         .trip-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
         .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .trip p { color: #94a3b8; font-size: 12px; margin-top: 6px; }
+        select { appearance: auto; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div class="info-panel">
-        <h2>План: 3 машины, 10 покупателей</h2>
+        <h2 id="scenario-title">План: 3 машины, 10 покупателей</h2>
         <label for="api">Адрес бэкенда</label>
         <input id="api" value="http://127.0.0.1:8000">
         <button id="build" type="button">Рассчитать и показать</button>
@@ -114,11 +115,13 @@
                 if (!demo.ok) {
                     throw new Error(request.detail || 'Не удалось взять сценарий');
                 }
+                const t0 = performance.now();
                 const response = await fetch(api + '/api/v1/plan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(request)
                 });
+                const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
                 const data = await response.json();
                 if (!response.ok) {
                     const detail = data.detail;
@@ -163,7 +166,7 @@
                 });
                 map.getView().fit(routeSource.getExtent(), { padding: [80, 80, 80, 80], maxZoom: 11 });
 
-                document.getElementById('status').textContent = data.status;
+                document.getElementById('status').textContent = data.status + ' (' + elapsed + ' с)';
                 document.getElementById('revenue').textContent = money(data.revenue);
                 document.getElementById('cost').textContent = money(data.transport_cost);
                 document.getElementById('profit').textContent = money(data.profit);
@@ -173,7 +176,7 @@
                     const stops = trip.stops.map((stop) => names[stop.buyer_id] || stop.buyer_id).join(' → ');
                     return '<div class="trip"><div class="trip-head"><span class="dot" style="background:' + color +
                         '"></span>' + (vehicles[trip.vehicle_id] || trip.vehicle_id) +
-                        '</div><p>' + (request.farm.name) + ' → ' + stops +
+                        '</div><p>' + (request.farm.name) + ' → ' + stops + ' → ' + request.farm.name +
                         '</p><p>' + trip.distance_km + ' км · ' + trip.load_kg + ' кг · ' + money(trip.cost) + '</p></div>';
                 }).join('');
             } catch (err) {

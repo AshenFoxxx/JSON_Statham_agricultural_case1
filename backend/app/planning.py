@@ -1,6 +1,6 @@
 from app.routing import fetch_matrix, fetch_route
 from app.schemas import PlanRequest, PlanResponse, RoutePoint
-from app.solver import FARM, solve_plan
+from app.solver_cp_sat import FARM, solve_plan
 
 
 def build_plan(request: PlanRequest) -> PlanResponse:
@@ -18,6 +18,7 @@ def build_plan(request: PlanRequest) -> PlanResponse:
         for stop in trip.stops:
             buyer = buyers[stop.buyer_id]
             route_points.append((buyer.id, buyer.longitude, buyer.latitude))
+        route_points.append((FARM, request.farm.longitude, request.farm.latitude))
         vehicle = vehicles[trip.vehicle_id]
         routed = fetch_route(
             route_points,
