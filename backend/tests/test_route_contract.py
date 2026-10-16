@@ -1,4 +1,4 @@
-from app.routing import process_route
+from app.routing import process_route, process_table
 
 
 def test_osrm_response_becomes_plan_legs() -> None:
@@ -21,3 +21,16 @@ def test_osrm_response_becomes_plan_legs() -> None:
     ]
     assert result["waypoints"][0] == {"id": "farm", "longitude": 37.6, "latitude": 55.7}
     assert result["waypoints"][2]["latitude"] == 54.2
+
+
+def test_osrm_table_becomes_hours_and_kilometers() -> None:
+    points = [("farm", 36.6, 55.1), ("kaluga", 36.2, 54.5)]
+    graph = process_table(
+        {
+            "durations": [[0, 3600], [7200, 0]],
+            "distances": [[0, 10000], [None, 0]],
+        },
+        points,
+    )
+    assert graph[("farm", "kaluga")] == (1.0, 10.0)
+    assert ("kaluga", "farm") not in graph

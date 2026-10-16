@@ -27,7 +27,10 @@ class Route:
     distance_km: float
 
 
-def solve_plan(request: PlanRequest) -> PlanResponse:
+def solve_plan(
+    request: PlanRequest,
+    graph: dict[tuple[str, str], tuple[float, float]],
+) -> PlanResponse:
     """Строит план максимума прибыли. Один выезд может объехать нескольких покупателей."""
     orders = {
         (buyer.id, order.product_id): order
@@ -38,7 +41,6 @@ def solve_plan(request: PlanRequest) -> PlanResponse:
     buyers = list(request.buyers)
     buyer_ids = [buyer.id for buyer in buyers]
     vehicles = [vehicle for vehicle in request.vehicles if vehicle.available]
-    graph = build_graph(request)
     stop_limit = max((vehicle.max_stops for vehicle in request.vehicles), default=1)
     all_routes = enumerate_routes(buyer_ids, graph, stop_limit)
     arrivals = earliest_arrivals(all_routes)
@@ -255,18 +257,6 @@ def solve_plan(request: PlanRequest) -> PlanResponse:
         trips,
         arrivals,
     )
-
-
-def build_graph(request: PlanRequest) -> dict[tuple[str, str], tuple[float, float]]:
-    """Перегон: (часы, километры). Без legs берётся прямая дорога от хозяйства."""
-    if request.legs:
-        return {
-            (leg.from_id, leg.to_id): (leg.hours, leg.distance_km) for leg in request.legs
-        }
-    return {
-        (FARM, buyer.id): (buyer.travel_time_hours, buyer.travel_distance_km)
-        for buyer in request.buyers
-    }
 
 
 def enumerate_routes(

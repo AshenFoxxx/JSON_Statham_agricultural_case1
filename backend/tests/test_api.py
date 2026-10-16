@@ -1,12 +1,14 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routing import fuel_cost_rub
 
 client = TestClient(app)
 
 
 def _payload() -> dict:
     return {
+        "farm": {"name": "Хозяйство", "longitude": 36.6, "latitude": 55.1},
         "products": [
             {"id": "berry", "name": "Ягода", "stock_kg": 100, "max_delivery_hours": 5},
             {"id": "apple", "name": "Яблоко", "stock_kg": 100, "max_delivery_hours": 20},
@@ -15,8 +17,8 @@ def _payload() -> dict:
             {
                 "id": "near",
                 "name": "Ближний",
-                "travel_time_hours": 2,
-                "travel_distance_km": 10,
+                "longitude": 36.7,
+                "latitude": 55.2,
                 "orders": [
                     {"product_id": "berry", "demand_kg": 100, "price_per_kg": 10},
                     {"product_id": "apple", "demand_kg": 50, "price_per_kg": 1},
@@ -25,8 +27,8 @@ def _payload() -> dict:
             {
                 "id": "far",
                 "name": "Дальний",
-                "travel_time_hours": 10,
-                "travel_distance_km": 100,
+                "longitude": 37.6,
+                "latitude": 55.7,
                 "orders": [
                     {"product_id": "berry", "demand_kg": 100, "price_per_kg": 100},
                     {"product_id": "apple", "demand_kg": 100, "price_per_kg": 8},
@@ -47,7 +49,67 @@ def _payload() -> dict:
     }
 
 
-def test_plan_uses_request_prices() -> None:
+def install_roads(monkeypatch, hops: dict[tuple[str, str], tuple[float, float]]) -> None:
+    """Подменяет OSRM: часы и километры заданы заранее, линия строится по точкам."""
+
+    def fetch_matrix(points):
+        return dict(hops)
+
+    def fetch_route(points, consumption, price):
+        legs = []
+        distance = 0.0
+        duration = 0.0
+        for index in range(len(points) - 1):
+            hours, km = hops[(points[index][0], points[index + 1][0])]
+            distance += km
+            duration += hours
+            legs.append(
+                {
+                    "from_id": points[index][0],
+                    "to_id": points[index + 1][0],
+                    "distance_km": km,
+                    "hours": hours,
+                }
+            )
+        return {
+            "distance_km": round(distance, 2),
+            "duration_hours": round(duration, 2),
+            "fuel_liters": round(distance / 100.0 * consumption, 2),
+            "fuel_cost_rub": round(fuel_cost_rub(distance, consumption, price), 2),
+            "legs": legs,
+            "waypoints": [
+                {"id": point_id, "longitude": lon, "latitude": lat}
+                for point_id, lon, lat in points
+            ],
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[lon, lat] for _point_id, lon, lat in points],
+            },
+        }
+
+    monkeypatch.setattr("app.planning.fetch_matrix", fetch_matrix)
+    monkeypatch.setattr("app.planning.fetch_route", fetch_route)
+
+
+def _mesh(ids: list[str], hours: float = 1.0, km: float = 30.0) -> dict[tuple[str, str], tuple[float, float]]:
+    return {
+        (origin, dest): (hours, km)
+        for origin in ids
+        for dest in ids
+        if origin != dest
+    }
+
+
+def test_plan_uses_request_prices(monkeypatch) -> None:
+    install_roads(
+        monkeypatch,
+        {
+            ("farm", "near"): (2.0, 10.0),
+            ("farm", "far"): (10.0, 100.0),
+            ("near", "far"): (8.0, 90.0),
+            ("far", "near"): (8.0, 90.0),
+        },
+    )
     cheap = client.post("/api/v1/plan", json=_payload())
     assert cheap.status_code == 200
     cheap_body = cheap.json()
@@ -63,6 +125,10 @@ def test_plan_uses_request_prices() -> None:
     assert cheap_body["revenue"] == 1000
     assert cheap_body["transport_cost"] == 50
     assert cheap_body["profit"] == 950
+    trip = cheap_body["trips"][0]
+    assert trip["waypoints"][0]["id"] == "farm"
+    assert trip["geometry"]["type"] == "LineString"
+    assert trip["geometry"]["coordinates"][0] == [36.6, 55.1]
 
     expensive = _payload()
     expensive["buyers"][1]["orders"][1]["price_per_kg"] = 20
@@ -80,11 +146,13 @@ def test_plan_uses_request_prices() -> None:
     assert costly.json()["profit"] == 1500
 
 
-def test_plan_respects_stock_demand_capacity_and_time() -> None:
-    response = client.post("/api/v1/plan", json=client.get("/api/v1/demo").json())
+def test_plan_respects_stock_demand_capacity_and_time(monkeypatch) -> None:
+    request = client.get("/api/v1/demo").json()
+    ids = ["farm"] + [buyer["id"] for buyer in request["buyers"]]
+    install_roads(monkeypatch, _mesh(ids))
+    response = client.post("/api/v1/plan", json=request)
     assert response.status_code == 200
     body = response.json()
-    request = client.get("/api/v1/demo").json()
     products = {item["id"]: item for item in request["products"]}
     vehicles = {item["id"]: item for item in request["vehicles"]}
     orders = {
@@ -118,6 +186,11 @@ def test_plan_respects_stock_demand_capacity_and_time() -> None:
         assert trip["load_kg"] <= vehicles[trip["vehicle_id"]]["capacity_kg"] + 1e-6
         assert len(trip["stops"]) <= vehicles[trip["vehicle_id"]]["max_stops"]
         assert abs(sum(stop["load_kg"] for stop in trip["stops"]) - trip["load_kg"]) < 1e-6
+        assert trip["waypoints"][0]["id"] == "farm"
+        assert [point["id"] for point in trip["waypoints"][1:]] == [
+            stop["buyer_id"] for stop in trip["stops"]
+        ]
+        assert trip["geometry"]["type"] == "LineString"
         vehicle = vehicles[trip["vehicle_id"]]
         expected_cost = (
             trip["distance_km"]
@@ -129,19 +202,30 @@ def test_plan_respects_stock_demand_capacity_and_time() -> None:
     assert body["profit"] == round(body["revenue"] - body["transport_cost"], 2)
 
 
-def test_unavailable_vehicle_is_not_used() -> None:
+def test_unavailable_vehicle_is_not_used(monkeypatch) -> None:
+    install_roads(monkeypatch, {("farm", "near"): (2.0, 10.0), ("farm", "far"): (10.0, 100.0)})
     payload = _payload()
     payload["vehicles"][0]["available"] = False
     response = client.post("/api/v1/plan", json=payload)
     assert response.status_code == 200
     body = response.json()
     assert body["shipments"] == []
+    assert body["trips"] == []
     assert body["profit"] == 0
     balances = {item["product_id"]: item for item in body["balances"]}
     assert balances["berry"]["leftover_kg"] == 100
 
 
-def test_one_trip_serves_two_buyers() -> None:
+def test_one_trip_serves_two_buyers(monkeypatch) -> None:
+    install_roads(
+        monkeypatch,
+        {
+            ("farm", "near"): (1.0, 10.0),
+            ("near", "next"): (1.0, 10.0),
+            ("farm", "next"): (4.0, 40.0),
+            ("next", "near"): (1.0, 10.0),
+        },
+    )
     payload = _payload()
     payload["products"] = [
         {"id": "berry", "name": "Ягода", "stock_kg": 80, "max_delivery_hours": 5}
@@ -150,25 +234,20 @@ def test_one_trip_serves_two_buyers() -> None:
         {
             "id": "near",
             "name": "Ближний",
-            "travel_time_hours": 1,
-            "travel_distance_km": 10,
+            "longitude": 36.7,
+            "latitude": 55.2,
             "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
         },
         {
             "id": "next",
             "name": "Следующий",
-            "travel_time_hours": 4,
-            "travel_distance_km": 40,
+            "longitude": 36.8,
+            "latitude": 55.3,
             "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
         },
     ]
     payload["vehicles"][0]["capacity_kg"] = 100
     payload["vehicles"][0]["max_stops"] = 2
-    payload["legs"] = [
-        {"from_id": "farm", "to_id": "near", "hours": 1, "distance_km": 10},
-        {"from_id": "near", "to_id": "next", "hours": 1, "distance_km": 10},
-        {"from_id": "farm", "to_id": "next", "hours": 4, "distance_km": 40},
-    ]
     response = client.post("/api/v1/plan", json=payload)
     assert response.status_code == 200
     body = response.json()
@@ -177,10 +256,20 @@ def test_one_trip_serves_two_buyers() -> None:
     assert [stop["buyer_id"] for stop in body["trips"][0]["stops"]] == ["near", "next"]
     assert body["trips"][0]["distance_km"] == 20
     assert body["trips"][0]["cost"] == 100
+    assert [point["id"] for point in body["trips"][0]["waypoints"]] == ["farm", "near", "next"]
     assert sorted(item["buyer_id"] for item in body["shipments"]) == ["near", "next"]
 
 
-def test_extra_kilometers_drop_unprofitable_stop() -> None:
+def test_extra_kilometers_drop_unprofitable_stop(monkeypatch) -> None:
+    install_roads(
+        monkeypatch,
+        {
+            ("farm", "near"): (1.0, 10.0),
+            ("near", "next"): (1.0, 200.0),
+            ("farm", "next"): (4.0, 210.0),
+            ("next", "near"): (1.0, 200.0),
+        },
+    )
     payload = _payload()
     payload["products"] = [
         {"id": "berry", "name": "Ягода", "stock_kg": 80, "max_delivery_hours": 5}
@@ -189,25 +278,20 @@ def test_extra_kilometers_drop_unprofitable_stop() -> None:
         {
             "id": "near",
             "name": "Ближний",
-            "travel_time_hours": 1,
-            "travel_distance_km": 10,
+            "longitude": 36.7,
+            "latitude": 55.2,
             "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
         },
         {
             "id": "next",
             "name": "Следующий",
-            "travel_time_hours": 4,
-            "travel_distance_km": 210,
+            "longitude": 37.6,
+            "latitude": 54.2,
             "orders": [{"product_id": "berry", "demand_kg": 40, "price_per_kg": 10}],
         },
     ]
     payload["vehicles"][0]["capacity_kg"] = 100
     payload["vehicles"][0]["max_stops"] = 2
-    payload["legs"] = [
-        {"from_id": "farm", "to_id": "near", "hours": 1, "distance_km": 10},
-        {"from_id": "near", "to_id": "next", "hours": 1, "distance_km": 200},
-        {"from_id": "farm", "to_id": "next", "hours": 4, "distance_km": 210},
-    ]
     response = client.post("/api/v1/plan", json=payload)
     assert response.status_code == 200
     body = response.json()

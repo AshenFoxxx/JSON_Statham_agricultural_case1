@@ -32,7 +32,10 @@ def demo() -> PlanRequest:
 
 @app.post("/api/v1/plan", response_model=PlanResponse)
 def plan(body: PlanRequest) -> PlanResponse:
-    return build_plan(body)
+    try:
+        return build_plan(body)
+    except RouteError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/route", response_model=RouteResponse)

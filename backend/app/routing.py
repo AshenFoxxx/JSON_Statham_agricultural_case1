@@ -1,6 +1,7 @@
 """Расчёт маршрута через OSRM. Координаты: longitude, latitude."""
 
 OSRM_API_URL = "http://router.project-osrm.org/route/v1/driving"
+OSRM_TABLE_URL = "http://router.project-osrm.org/table/v1/driving"
 
 
 class RouteError(Exception):
@@ -10,6 +11,54 @@ class RouteError(Exception):
 def fuel_cost_rub(distance_km: float, consumption_l_per_100km: float, price_rub_per_liter: float) -> float:
     """Стоимость топлива: (км / 100) × расход × цена литра."""
     return (distance_km / 100.0) * consumption_l_per_100km * price_rub_per_liter
+
+
+def fetch_matrix(points: list[tuple[str, float, float]]) -> dict[tuple[str, str], tuple[float, float]]:
+    """Часы и километры между всеми точками. Ключ — (from_id, to_id)."""
+    if len(points) < 2:
+        raise RouteError("Нужны минимум две точки")
+
+    import requests
+
+    coords = ";".join(f"{lon},{lat}" for _point_id, lon, lat in points)
+    url = f"{OSRM_TABLE_URL}/{coords}?annotations=duration,distance"
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as exc:
+        raise RouteError("Не удалось получить расстояния от OSRM") from exc
+
+    if data.get("code") != "Ok":
+        raise RouteError("OSRM не посчитал расстояния")
+    return process_table(data, points)
+
+
+def process_table(
+    data: dict,
+    points: list[tuple[str, float, float]],
+) -> dict[tuple[str, str], tuple[float, float]]:
+    """Матрица OSRM: секунды и метры становятся часами и километрами."""
+    durations = data.get("durations")
+    distances = data.get("distances")
+    if not durations or not distances or len(durations) != len(points) or len(distances) != len(points):
+        raise RouteError("OSRM вернул неполную матрицу расстояний")
+
+    graph: dict[tuple[str, str], tuple[float, float]] = {}
+    for origin_index, origin in enumerate(points):
+        duration_row = durations[origin_index]
+        distance_row = distances[origin_index]
+        if len(duration_row) != len(points) or len(distance_row) != len(points):
+            raise RouteError("OSRM вернул неполную матрицу расстояний")
+        for dest_index, dest in enumerate(points):
+            if origin_index == dest_index:
+                continue
+            seconds = duration_row[dest_index]
+            meters = distance_row[dest_index]
+            if seconds is None or meters is None:
+                continue
+            graph[(origin[0], dest[0])] = (seconds / 3600.0, meters / 1000.0)
+    return graph
 
 
 def fetch_route(

@@ -3,6 +3,7 @@ from app.schemas import PlanRequest
 ASSUMPTIONS = [
     "Срок культуры ограничивает только время в пути до покупателя.",
     "Отсчёт срока начинается в момент отправки. Время на складе не учитывается.",
+    "Время и километры считаются по дорогам между координатами хозяйства и покупателей.",
     "Один выезд может объехать нескольких покупателей. Время прибытия складывается из перегонов.",
     "Стоимость выезда — топливо по километрам маршрута: (км / 100) × расход × цена литра.",
     "Каждый выезд проверяется отдельно. Очередь выездов одной машины не моделируется.",
@@ -15,6 +16,11 @@ ASSUMPTIONS = [
 def _base() -> dict:
     """Пример тела запроса. Расчёт его не использует: план строится из POST /api/v1/plan."""
     return {
+        "farm": {
+            "name": "Хозяйство Обнинск",
+            "longitude": 36.6103,
+            "latitude": 55.0969,
+        },
         "products": [
             {
                 "id": "strawberry",
@@ -39,8 +45,8 @@ def _base() -> dict:
             {
                 "id": "buyer-obninsk",
                 "name": "Рынок Обнинск",
-                "travel_time_hours": 1,
-                "travel_distance_km": 50,
+                "longitude": 36.5855,
+                "latitude": 55.112,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 200, "price_per_kg": 160},
                     {"product_id": "tomato", "demand_kg": 250, "price_per_kg": 70},
@@ -50,8 +56,8 @@ def _base() -> dict:
             {
                 "id": "buyer-kaluga",
                 "name": "Сеть Калуга",
-                "travel_time_hours": 4,
-                "travel_distance_km": 200,
+                "longitude": 36.2613,
+                "latitude": 54.5138,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 250, "price_per_kg": 210},
                     {"product_id": "tomato", "demand_kg": 200, "price_per_kg": 85},
@@ -61,8 +67,8 @@ def _base() -> dict:
             {
                 "id": "buyer-tula",
                 "name": "Опт Тула",
-                "travel_time_hours": 5.5,
-                "travel_distance_km": 275,
+                "longitude": 37.6186,
+                "latitude": 54.193,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 180, "price_per_kg": 190},
                     {"product_id": "tomato", "demand_kg": 300, "price_per_kg": 75},
@@ -72,8 +78,8 @@ def _base() -> dict:
             {
                 "id": "buyer-moscow",
                 "name": "Рестораны Москва",
-                "travel_time_hours": 7,
-                "travel_distance_km": 350,
+                "longitude": 37.6173,
+                "latitude": 55.7558,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 300, "price_per_kg": 280},
                     {"product_id": "tomato", "demand_kg": 400, "price_per_kg": 120},
@@ -83,8 +89,8 @@ def _base() -> dict:
             {
                 "id": "buyer-far",
                 "name": "Дальний опт",
-                "travel_time_hours": 20,
-                "travel_distance_km": 1000,
+                "longitude": 39.2003,
+                "latitude": 51.672,
                 "orders": [
                     {"product_id": "strawberry", "demand_kg": 200, "price_per_kg": 300},
                     {"product_id": "tomato", "demand_kg": 350, "price_per_kg": 140},
@@ -124,37 +130,7 @@ def _base() -> dict:
                 "available": True,
             },
         ],
-        "legs": _demo_legs(),
     }
-
-
-def _demo_legs() -> list[dict]:
-    """Прямые перегоны от хозяйства и короткие переезды между соседними покупателями."""
-    direct = {
-        "buyer-obninsk": (1, 50),
-        "buyer-kaluga": (4, 200),
-        "buyer-tula": (5.5, 275),
-        "buyer-moscow": (7, 350),
-        "buyer-far": (20, 1000),
-    }
-    hops = [
-        ("buyer-obninsk", "buyer-kaluga", 1.2, 60),
-        ("buyer-kaluga", "buyer-tula", 1.5, 75),
-        ("buyer-tula", "buyer-moscow", 2, 100),
-        ("buyer-moscow", "buyer-far", 10, 500),
-    ]
-    legs = [
-        {"from_id": "farm", "to_id": buyer_id, "hours": hours, "distance_km": distance_km}
-        for buyer_id, (hours, distance_km) in direct.items()
-    ]
-    for origin, destination, hours, distance_km in hops:
-        legs.append(
-            {"from_id": origin, "to_id": destination, "hours": hours, "distance_km": distance_km}
-        )
-        legs.append(
-            {"from_id": destination, "to_id": origin, "hours": hours, "distance_km": distance_km}
-        )
-    return legs
 
 
 def demo_request() -> PlanRequest:

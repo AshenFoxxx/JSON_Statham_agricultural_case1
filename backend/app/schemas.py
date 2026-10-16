@@ -19,14 +19,17 @@ class BuyerOrder(BaseModel):
     price_per_kg: float = Field(ge=0, description="Закупочная цена, руб/кг")
 
 
+class Farm(BaseModel):
+    name: str = Field(min_length=1)
+    longitude: float = Field(ge=-180, le=180)
+    latitude: float = Field(ge=-90, le=90)
+
+
 class Buyer(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
-    travel_time_hours: float = Field(ge=0, description="Время в пути от хозяйства, ч")
-    travel_distance_km: float = Field(
-        ge=0,
-        description="Километры напрямую от хозяйства. Используются, только если список legs пуст.",
-    )
+    longitude: float = Field(ge=-180, le=180)
+    latitude: float = Field(ge=-90, le=90)
     orders: list[BuyerOrder] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -51,13 +54,6 @@ class Vehicle(BaseModel):
         description="Сколько покупателей можно объехать за один выезд",
     )
     available: bool = True
-
-
-class Leg(BaseModel):
-    from_id: str = Field(min_length=1, description="farm или id покупателя")
-    to_id: str = Field(min_length=1, description="farm или id покупателя")
-    hours: float = Field(ge=0, description="Время перегона, ч")
-    distance_km: float = Field(ge=0, description="Длина перегона, км")
 
 
 class RoutePoint(BaseModel):
@@ -90,13 +86,10 @@ class RouteResponse(BaseModel):
 
 
 class PlanRequest(BaseModel):
+    farm: Farm
     products: list[Product] = Field(min_length=1)
     buyers: list[Buyer] = Field(min_length=1)
     vehicles: list[Vehicle] = Field(min_length=1)
-    legs: list[Leg] = Field(
-        default_factory=list,
-        description="Перегоны между хозяйством (farm) и покупателями. Без них рейс везёт одному покупателю.",
-    )
 
     @model_validator(mode="after")
     def references_exist(self) -> "PlanRequest":
@@ -126,19 +119,6 @@ class PlanRequest(BaseModel):
                     f"У покупателя {buyer.id} неизвестные культуры: {', '.join(unknown)}"
                 )
 
-        known_places = set(buyer_ids) | {"farm"}
-        seen_legs: set[tuple[str, str]] = set()
-        for leg in self.legs:
-            if leg.from_id not in known_places or leg.to_id not in known_places:
-                raise ValueError(
-                    f"Перегон {leg.from_id} -> {leg.to_id} ссылается на неизвестную точку"
-                )
-            if leg.from_id == leg.to_id:
-                raise ValueError(f"Перегон {leg.from_id} ведёт в ту же точку")
-            key = (leg.from_id, leg.to_id)
-            if key in seen_legs:
-                raise ValueError(f"Перегон {leg.from_id} -> {leg.to_id} указан дважды")
-            seen_legs.add(key)
         return self
 
 
@@ -165,9 +145,17 @@ class Stop(BaseModel):
 class Trip(BaseModel):
     vehicle_id: str
     stops: list[Stop] = Field(min_length=1)
-    distance_km: float = Field(ge=0, description="Сумма километров перегонов этого выезда")
+    distance_km: float = Field(ge=0, description="Длина маршрута по дорогам, км")
     cost: float = Field(ge=0, description="Топливо этого выезда, руб")
     load_kg: float = Field(ge=0, description="Суммарная загрузка выезда, кг")
+    waypoints: list[RoutePoint] = Field(
+        default_factory=list,
+        description="Точки по порядку, первая — хозяйство",
+    )
+    geometry: dict = Field(
+        default_factory=dict,
+        description="GeoJSON LineString дороги этого выезда",
+    )
 
 
 class ProductBalance(BaseModel):
