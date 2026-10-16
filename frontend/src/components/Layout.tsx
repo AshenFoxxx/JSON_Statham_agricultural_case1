@@ -5,6 +5,7 @@ const navItems = [
   { path: '/warehouse', label: 'Склад', icon: '🏭' },
   { path: '/buyers', label: 'Покупатели', icon: '🛒' },
   { path: '/vehicles', label: 'Машины', icon: '🚛' },
+  { path: '/routes', label: 'Маршруты', icon: '🗺️' },
 ]
 
 export default function Layout() {

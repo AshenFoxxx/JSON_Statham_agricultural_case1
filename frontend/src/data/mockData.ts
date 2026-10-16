@@ -1,4 +1,4 @@
-import type { Product, Buyer, Vehicle } from '../types'
+import type { Product, Buyer, Vehicle, Route } from '../types'
 
 export const mockProducts: Product[] = [
   {
@@ -95,5 +95,60 @@ export const mockVehicles: Vehicle[] = [
     max_trips: 1,
     fuel_consumption_l_per_100km: 15,
     available: true,
+  },
+]
+
+export const mockRoutes: Route[] = [
+  {
+    id: 'route-1',
+    vehicle_id: 'vehicle-a',
+    vehicle_name: 'Газель А',
+    buyer_id: 'buyer-obninsk',
+    buyer_name: 'Рынок Обнинск',
+    product_id: 'strawberry',
+    product_name: 'Клубника',
+    quantity_kg: 200,
+    distance_km: 45,
+    travel_time_hours: 1,
+    cost: 6000,
+  },
+  {
+    id: 'route-2',
+    vehicle_id: 'vehicle-b',
+    vehicle_name: 'Газель Б',
+    buyer_id: 'buyer-kaluga',
+    buyer_name: 'Сеть Калуга',
+    product_id: 'tomato',
+    product_name: 'Томаты',
+    quantity_kg: 200,
+    distance_km: 80,
+    travel_time_hours: 4,
+    cost: 6500,
+  },
+  {
+    id: 'route-3',
+    vehicle_id: 'vehicle-c',
+    vehicle_name: 'Рефрижератор',
+    buyer_id: 'buyer-moscow',
+    buyer_name: 'Рестораны Москва',
+    product_id: 'strawberry',
+    product_name: 'Клубника',
+    quantity_kg: 300,
+    distance_km: 250,
+    travel_time_hours: 7,
+    cost: 8000,
+  },
+  {
+    id: 'route-4',
+    vehicle_id: 'vehicle-a',
+    vehicle_name: 'Газель А',
+    buyer_id: 'buyer-tula',
+    buyer_name: 'Опт Тула',
+    product_id: 'cucumber',
+    product_name: 'Огурцы',
+    quantity_kg: 220,
+    distance_km: 150,
+    travel_time_hours: 5.5,
+    cost: 6000,
   },
 ]
