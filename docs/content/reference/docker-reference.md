@@ -1,9 +1,5 @@
 # Справочник: Docker-конфигурация
 
-> **Тип:** Reference (справочник)
-> 
-> Описание: параметры Dockerfile и docker-compose.yml.
-
 ---
 
 ## docker-compose.yml
@@ -19,25 +15,25 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: agro_logistics
     ports:
-      - "5432:5432"
+      - "5432:5432".
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data.
 
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "8000:8000".
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/agro_logistics
     depends_on:
-      - db
+      - db.
 
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - "80:80".
     depends_on:
-      - backend
+      - backend.
 
 volumes:
   pgdata:
@@ -120,8 +116,8 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ### Многоступенчатая сборка
 
-1. **Builder** — Node.js собирает React-приложение
-2. **Nginx** — раздаёт статические файлы
+1. Builder — Node.js собирает React-приложение
+2. Nginx — раздает статические файлы
 
 ---
 

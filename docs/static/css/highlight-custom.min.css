@@ -1,0 +1,66 @@
+/* ==========================================================================
+   Custom highlight.js theme — white, green, yellow only
+   ========================================================================== */
+
+pre code.hljs {
+    display: block;
+    overflow-x: auto;
+    padding: 1em;
+    font-size: 0.9rem;
+}
+
+code.hljs {
+    padding: 3px 5px;
+}
+
+/* White / light text for default content */
+.hljs {
+    color: #e2e8f0;
+    background: #1e293b;
+}
+
+/* Green for strings, keywords, tags */
+.hljs-string,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-variable,
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type,
+.hljs-literal,
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition,
+.hljs-code,
+.hljs-title.class,
+.hljs-title.class.inherited {
+    color: #86efac;
+}
+
+/* Yellow for comments, directives, attributes */
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion,
+.hljs-meta,
+.hljs-doctype,
+.hljs-tag,
+.hljs-formula {
+    color: #fde047;
+}
+
+/* Yellow for function names and built-ins */
+.hljs-name,
+.hljs-section,
+.hljs-built_in,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+    color: #fde047;
+}
+
+/* White for punctuation and operators */
+.hljs-punctuation {
+    color: #e2e8f0;
+}

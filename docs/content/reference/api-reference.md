@@ -1,9 +1,5 @@
 # Справочник: API и данные
 
-> **Тип:** Reference (справочник)
-> 
-> Описание: форматы запросов, ответов и моделей данных.
-
 ---
 
 ## Базовый URL
@@ -12,7 +8,7 @@
 http://localhost:8000/api/v1
 ```
 
-Интерактивная документация: **http://localhost:8000/docs**
+Интерактивная документация: `http://localhost:8000/docs`
 
 ---
 
@@ -24,7 +20,7 @@ http://localhost:8000/api/v1
 
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `id` | string | Идентификатор (фиксированный: `"farm"`) |
+| `id` | string | Идентификатор (фиксированный: "farm") |
 | `name` | string | Название хозяйства |
 | `longitude` | float | Долгота |
 | `latitude` | float | Широта |
@@ -37,7 +33,7 @@ http://localhost:8000/api/v1
 curl http://localhost:8000/api/v1/farm
 ```
 
-**Ответ:**
+Ответ:
 
 ```json
 {
@@ -87,7 +83,7 @@ curl -X PUT http://localhost:8000/api/v1/farm \
 curl http://localhost:8000/api/v1/products
 ```
 
-**Ответ:**
+Ответ:
 
 ```json
 [
@@ -143,7 +139,7 @@ curl -X DELETE http://localhost:8000/api/v1/products/strawberry
 curl http://localhost:8000/api/v1/buyers
 ```
 
-**Ответ:**
+Ответ:
 
 ```json
 [
@@ -202,7 +198,7 @@ curl -X DELETE http://localhost:8000/api/v1/buyers/buyer-obninsk
 curl http://localhost:8000/api/v1/orders
 ```
 
-**Ответ:**
+Ответ:
 
 ```json
 [
@@ -246,7 +242,7 @@ curl -X DELETE http://localhost:8000/api/v1/orders/strawberry/buyer-obninsk
 |------|-----|----------|
 | `id` | string | Уникальный идентификатор |
 | `name` | string | Название транспорта |
-| `capacity_kg` | float | Грузоподъёмность (кг) |
+| `capacity_kg` | float | Грузоподъемность (кг) |
 | `fuel_consumption_l_per_100km` | float | Расход топлива (л/100км) |
 | `fuel_price_rub_per_liter` | float | Цена топлива (₽/л) |
 | `max_trips` | int | Максимум рейсов (1-10) |
@@ -261,7 +257,7 @@ curl -X DELETE http://localhost:8000/api/v1/orders/strawberry/buyer-obninsk
 curl http://localhost:8000/api/v1/vehicles
 ```
 
-**Ответ:**
+Ответ:
 
 ```json
 [
@@ -324,13 +320,13 @@ curl -X POST http://localhost:8000/api/v1/plan \
   }'
 ```
 
-**Тело запроса:**
+Тело запроса:
 
-- `products` — массив объектов Product
-- `buyers` — массив объектов Buyer
-- `vehicles` — массив объектов Vehicle
+- `products` — массив объектов Product;
+- `buyers` — массив объектов Buyer;
+- `vehicles` — массив объектов Vehicle.
 
-**Ответ:**
+Ответ:
 
 ```json
 {
@@ -363,7 +359,7 @@ curl -X POST http://localhost:8000/api/v1/plan \
 curl http://localhost:8000/health
 ```
 
-**Ответ:**
+Ответ:
 
 ```json
 {"status": "ok"}

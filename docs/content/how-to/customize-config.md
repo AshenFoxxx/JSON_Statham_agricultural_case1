@@ -1,15 +1,5 @@
 # Практическое руководство: Настройка конфигурации
 
-> **Тип:** How-To Guide (практическое руководство)
-> 
-> Задача: изменить параметры проекта под свои нужды.
-
----
-
-## Задача
-
-Настроить параметры базы данных, API и переменные окружения.
-
 ---
 
 ## Переменные окружения бэкенда
@@ -22,7 +12,7 @@
 services:
   backend:
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/agro_logistics
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/agro_logistics.
 ```
 
 | Переменная | Описание | По умолчанию |
@@ -40,7 +30,7 @@ services:
       POSTGRES_DB: mydb
   backend:
     environment:
-      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydb
+      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydb.
 ```
 
 ---
@@ -53,15 +43,15 @@ services:
 services:
   db:
     ports:
-      - "5433:5432"   # БД на порту 5433
-  
+      - "5433:5432"   # БД на порту 5433.
+
   backend:
     ports:
-      - "9000:8000"   # Backend на порту 9000
-  
+      - "9000:8000"   # Backend на порту 9000.
+
   frontend:
     ports:
-      - "3000:80"     # Frontend на порту 3000
+      - "3000:80"     # Frontend на порту 3000.
 ```
 
 ### Режим разработки
@@ -70,7 +60,7 @@ services:
 services:
   backend:
     volumes:
-      - ./backend/app:/app/app    # Hot-reload кода
+      - ./backend/app:/app/app    # Hot-reload кода.
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -156,9 +146,9 @@ services:
       -c shared_buffers=256MB
       -c effective_cache_size=512MB
     ports:
-      - "5432:5432"
+      - "5432:5432".
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data.
 ```
 
 ---
@@ -179,4 +169,4 @@ services:
 
 ---
 
-<< [Развёртывание сервисов](/doc/how-to/deploy-services) | [Архитектура системы](/doc/reference/architecture) >>
+<< [Развертывание сервисов](/doc/how-to/deploy-services) | [Архитектура системы](/doc/reference/architecture) >>

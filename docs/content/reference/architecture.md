@@ -1,9 +1,5 @@
 # Справочник: Архитектура системы
 
-> **Тип:** Reference (справочник)
-> 
-> Описание: полная структура проекта и компонентов.
-
 ---
 
 ## Общая архитектура
@@ -27,8 +23,8 @@
 │  └──────────────────────┘    │  PostgreSQL          │   │
 │         ▲                    │      ▲               │   │
 │         │ HTTP               │      │               │   │
-│  ┌──────────────────────┐    │      │               │   │
-│  │   Service: frontend  │    └──────┘               │   │
+│  ┌──────────────────────┐    └──────┘               │   │
+│  │   Service: frontend  │                           │   │
 │  │   (React + Vite)     │                           │   │
 │  │                      │                           │   │
 │  │  App.tsx             │                           │   │
@@ -78,8 +74,8 @@ Hackaton/
 │       │   └── solver.ts           # Solver API
 │       ├── components/
 │       │   ├── Layout.tsx          # Макет приложения
-│       │   ├── DataTable.tsx       | Таблица данных
-│       │   └── Modal.tsx           | Модальное окно
+│       │   ├── DataTable.tsx       # Таблица данных
+│       │   └── Modal.tsx           # Модальное окно
 │       ├── pages/
 │       │   ├── Warehouse.tsx       # Склад продукции
 │       │   ├── FarmPage.tsx        # Управление хозяйством
@@ -89,7 +85,7 @@ Hackaton/
 │       ├── types/
 │       │   └── index.ts            # TypeScript типы
 │       └── contexts/
-│           └── ThemeContext.tsx    # Тёмная/светлая тема
+│           └── ThemeContext.tsx    # Темная/светлая тема
 └── docs/
     ├── Dockerfile                  # Образ документации
     ├── server.py                   # Flask-сервер документации
@@ -137,7 +133,7 @@ Hackaton/
 
 ---
 
-## volumes
+## Volumes
 
 | Volume | Mount | Назначение |
 |--------|-------|------------|
