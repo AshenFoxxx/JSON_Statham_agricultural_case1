@@ -5,6 +5,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    host: true
-  }
+    host: true,
+    proxy: {
+      '/doc': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
+      '/static': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 })

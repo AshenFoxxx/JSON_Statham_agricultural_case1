@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:docs": "bash scripts/start-docs.sh",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

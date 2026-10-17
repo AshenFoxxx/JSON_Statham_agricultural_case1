@@ -83,9 +83,7 @@ export default function Layout() {
                 Политика конфиденциальности
               </a>
               <a
-                href="http://127.0.0.1:5001/"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/doc/"
                 className="text-primary-600 dark:text-primary-400 hover:underline"
               >
                 Документация

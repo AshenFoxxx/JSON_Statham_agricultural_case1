@@ -176,6 +176,8 @@ http://localhost:3000/
 http://localhost:8000/api/v1
 ```
 
+Полная Swagger-документация: `http://127.0.0.1:8000/docs`
+
 ### Сущности
 
 #### Хозяйство (Farm)
@@ -306,28 +308,3 @@ backend/
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/agrologistics
 ```
-
-## 🐳 Docker (опционально)
-
-Docker не требуется для работы проекта. Используйте его только если вам нужен изолированный контейнерный деплой.
-
-### Запуск с Docker Compose
-
-```bash
-# Запуск всего стека
-docker-compose up --build
-
-# Запуск в фоне
-docker-compose up -d
-
-# Остановка
-docker-compose down
-```
-
-### Сервисы
-
-| Сервис     | Порт  | Описание              |
-|------------|-------|-----------------------|
-| Frontend   | 80    | React приложение      |
-| Backend    | 8000  | FastAPI API           |
-| PostgreSQL | 5432  | База данных           |

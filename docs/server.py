@@ -121,7 +121,7 @@ def get_prev_next(url: str, items: list[dict]):
 # Flask application
 # ---------------------------------------------------------------------------
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 
 
 @app.template_filter("filestem")
@@ -143,6 +143,15 @@ def get_toc_data():
 @app.route("/")
 def index():
     """Redirect to the first page in the TOC."""
+    toc, flat = get_toc_data()
+    if flat:
+        return redirect(flat[0]["url"])
+    return "No documentation found.", 404
+
+
+@app.route("/doc/")
+def doc_root():
+    """Redirect /doc/ to the first documentation page."""
     toc, flat = get_toc_data()
     if flat:
         return redirect(flat[0]["url"])
