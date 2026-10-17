@@ -489,7 +489,7 @@ export default function Routes() {
               <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <button
                   onClick={() => setSelectedTrip(selectedTrip === trip ? null : trip)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                  className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   style={{ borderLeft: `4px solid ${tripColor(index)}` }}
                 >
                   <div className="flex items-center gap-3">
@@ -564,7 +564,7 @@ export default function Routes() {
           <button
             type="button"
             onClick={() => setShipmentsOpen((open) => !open)}
-            className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+            className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
               Отгрузки ({shipments.length})
@@ -581,28 +581,28 @@ export default function Routes() {
             </svg>
           </button>
           {shipmentsOpen && (
-            <div className="border-t border-gray-200 dark:border-gray-700 overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-750">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Продукт</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Покупатель</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Машина</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Количество</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {shipments.map((s, i) => (
-                    <tr key={i}>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getProductName(s.product_id)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getBuyerName(s.buyer_id)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getVehicleName(s.vehicle_id)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{s.quantity_kg} кг</td>
+            <div className="border-t border-gray-200 dark:border-gray-700">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800/50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Продукт</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Покупатель</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Машина</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Количество</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {shipments.map((s, i) => (
+                      <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getProductName(s.product_id)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getBuyerName(s.buyer_id)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getVehicleName(s.vehicle_id)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{s.quantity_kg} кг</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
           )}
         </div>
       )}
@@ -614,25 +614,27 @@ export default function Routes() {
             Остаток = запас − отгрузка. Потеря равна остатку: что не уехало в этом плане, для отчёта сгнило.
           </p>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-750">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Культура</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Остаток</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Потеря</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {balances.map((b, i) => (
-                  <tr key={i}>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getProductName(b.product_id)}</td>
-                    <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400 font-medium">{b.leftover_kg} кг</td>
-                    <td className="px-6 py-4 text-sm text-red-600 dark:text-red-400 font-medium">{b.loss_kg} кг</td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Культура</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Остаток</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Потеря</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  {balances.map((b, i) => (
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{getProductName(b.product_id)}</td>
+                      <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400 font-medium">{b.leftover_kg} кг</td>
+                      <td className="px-6 py-4 text-sm text-red-600 dark:text-red-400 font-medium">{b.loss_kg} кг</td>
+                    </tr>
+                  ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
         </div>
       )}
 

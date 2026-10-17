@@ -24,5 +24,17 @@ services:
       - backend
     restart: unless-stopped
 
+  docs:
+    build:
+      context: ./docs
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./docs/content:/app/content
+      - ./docs/static:/app/static
+      - ./docs/templates:/app/templates
+    restart: unless-stopped
+
 volumes:
   agro-data:

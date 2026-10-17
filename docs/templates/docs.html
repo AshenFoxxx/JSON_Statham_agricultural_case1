@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — АгроЛогистика</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/highlight-custom.min.css') }}">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="sidebar-logo">
+                    <span>АгроЛогистика</span>
+                </a>
+                <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav" id="sidebarNav">
+                {% for section in toc %}
+                <div class="nav-section">
+                    <div class="nav-section-title" data-section="{{ section.file | replace('.md', '') }}">
+                        {{ section.title }}
+                        <i class="fa-solid fa-chevron-down section-chevron"></i>
+                    </div>
+                    <ul class="nav-subsection">
+                        {% for child in section.get('children', []) %}
+                        <li class="nav-item{% if '/doc/' ~ child.file | replace('.md', '') == current_url %} active{% endif %}">
+                            <a href="/doc/{{ child.file | replace('.md', '') }}">
+                                {{ child.title }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </nav>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-body">
+                    {{ content | safe }}
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>
