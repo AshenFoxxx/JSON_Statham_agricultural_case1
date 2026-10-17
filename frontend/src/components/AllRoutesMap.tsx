@@ -129,7 +129,10 @@ export default function AllRoutesMap({ routes, farm, buyers = [], className }: A
         zoom: 8,
       }),
     })
-    map.getView().fit(vector.getExtent(), { padding: [36, 36, 36, 36], maxZoom: 13 })
+    const extent = vector.getExtent()
+    if (extent) {
+      map.getView().fit(extent, { padding: [36, 36, 36, 36], maxZoom: 13 })
+    }
     return () => {
       map.setTarget(undefined)
     }

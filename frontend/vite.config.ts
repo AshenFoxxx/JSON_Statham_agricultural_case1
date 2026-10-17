@@ -8,11 +8,11 @@ export default defineConfig({
     host: true,
     proxy: {
       '/doc': {
-        target: 'http://127.0.0.1:3001',
+        target: 'http://127.0.0.1:5001',
         changeOrigin: true,
       },
       '/static': {
-        target: 'http://127.0.0.1:3001',
+        target: 'http://127.0.0.1:5001',
         changeOrigin: true,
       },
     },

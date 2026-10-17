@@ -110,7 +110,10 @@ export default function RouteLineMap({ coordinates, title, color = '#0284c7', bu
       }),
     })
     if (lineCoords.length >= 2) {
-      map.getView().fit(vector.getExtent(), { padding: [28, 28, 28, 28], maxZoom: 14 })
+      const extent = vector.getExtent()
+      if (extent) {
+        map.getView().fit(extent, { padding: [28, 28, 28, 28], maxZoom: 14 })
+      }
     }
     return () => {
       map.setTarget(undefined)
