@@ -59,7 +59,7 @@ docker compose version
 | Сервис | Описание | Порт | Зависимости |
 |--------|----------|------|-------------|
 | `backend` | FastAPI + CRUD + CP-SAT Solver | `8000` | — |
-| `frontend` | React + Vite | `80` | `backend` |
+| `frontend` | React + Vite | `3000` | `backend` |
 
 База данных: SQLite хранится в томе `agro-data`. Отдельный контейнер не требуется.
 
