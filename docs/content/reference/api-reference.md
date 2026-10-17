@@ -34,9 +34,9 @@ curl http://localhost:8000/api/v1/farm
 ```json
 {
   "id": "farm",
-  "name": "ООО АгроТех",
-  "longitude": 54.9815,
-  "latitude": 36.2523
+  "name": "Хозяйство Обнинск",
+  "longitude": 36.6103,
+  "latitude": 55.0969
 }
 ```
 
@@ -47,7 +47,7 @@ curl http://localhost:8000/api/v1/farm
 ```bash
 curl -X POST http://localhost:8000/api/v1/farm \
   -H "Content-Type: application/json" \
-  -d '{"name": "ООО АгроТех", "longitude": 54.9815, "latitude": 36.2523}'
+  -d '{"name": "Хозяйство Обнинск", "longitude": 36.6103, "latitude": 55.0969}'
 ```
 
 #### PUT /farm
@@ -57,7 +57,7 @@ curl -X POST http://localhost:8000/api/v1/farm \
 ```bash
 curl -X PUT http://localhost:8000/api/v1/farm \
   -H "Content-Type: application/json" \
-  -d '{"name": "ООО АгроТех", "longitude": 54.9815, "latitude": 36.2523}'
+  -d '{"name": "Хозяйство Обнинск", "longitude": 36.6103, "latitude": 55.0969}'
 ```
 
 ### Продукция (Products)
@@ -135,8 +135,8 @@ curl http://localhost:8000/api/v1/buyers
 
 ```json
 [
-  {"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 54.5126, "latitude": 36.5927},
-  {"id": "buyer-kaluga", "name": "Сеть Калуга", "longitude": 54.5293, "latitude": 36.2754}
+  {"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 36.5855, "latitude": 55.112},
+  {"id": "buyer-kaluga", "name": "Сеть Калуга", "longitude": 36.2613, "latitude": 54.5138}
 ]
 ```
 
@@ -147,7 +147,7 @@ curl http://localhost:8000/api/v1/buyers
 ```bash
 curl -X POST http://localhost:8000/api/v1/buyers \
   -H "Content-Type: application/json" \
-  -d '{"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 54.5126, "latitude": 36.5927}'
+  -d '{"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 36.5855, "latitude": 55.112}'
 ```
 
 #### PUT /buyers/{buyer_id}
@@ -157,7 +157,7 @@ curl -X POST http://localhost:8000/api/v1/buyers \
 ```bash
 curl -X PUT http://localhost:8000/api/v1/buyers/buyer-obninsk \
   -H "Content-Type: application/json" \
-  -d '{"name": "Рынок Обнинск", "longitude": 54.5126, "latitude": 36.5927}'
+  -d '{"name": "Рынок Обнинск", "longitude": 36.5855, "latitude": 55.112}'
 ```
 
 #### DELETE /buyers/{buyer_id}
@@ -233,7 +233,7 @@ curl -X DELETE http://localhost:8000/api/v1/orders/strawberry/buyer-obninsk
 | `capacity_kg` | float | Грузоподъемность (кг) |
 | `fuel_consumption_l_per_100km` | float | Расход топлива (л/100км) |
 | `fuel_price_rub_per_liter` | float | Цена топлива (₽/л) |
-| `max_trips` | int | Максимум рейсов (1-10) |
+| `max_trips` | int | Максимум рейсов (1–3) |
 | `max_stops` | int | Максимум остановок (1-5) |
 | `available` | boolean | Доступен ли транспорт |
 
@@ -322,7 +322,7 @@ curl -X POST http://localhost:8000/api/v1/plan \
         "capacity_kg": 800,
         "fuel_consumption_l_per_100km": 15,
         "fuel_price_rub_per_liter": 60,
-        "max_trips": 1,
+        "max_trips": 2,
         "max_stops": 3,
         "available": true
       }

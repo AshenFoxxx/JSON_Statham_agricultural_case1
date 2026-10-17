@@ -14,7 +14,7 @@
 ## Структура Docker-файлов
 
 ```
-Hackaton/
+agr_case1/
 ├── docker-compose.yml          # Оркестрация сервисов
 ├── backend/
 │   ├── Dockerfile              # Образ бэкенда (FastAPI)
@@ -34,7 +34,6 @@ Hackaton/
 │   ├── Dockerfile              # Образ фронтенда (React)
 │   ├── package.json            # Node.js-зависимости
 │   └── src/                    # Исходный код React
-├── demo-map/                   # Отдельная карта маршрутов
 └── docs/
     ├── Dockerfile              # Образ документации
     └── .dockerignore
@@ -103,15 +102,15 @@ curl http://localhost:8000/health
 
 ### API документация
 
-Откройте `http://localhost:8000/docs` — интерактивная документация Swagger UI.
+Откройте `http://localhost:8000/docs` — интерактивная схема API (Swagger).
 
-### Карта маршрутов
+### Сайт документации
 
-Откройте `http://localhost:8000/map/` — отдельная карта с демо-маршрутами.
+Откройте `http://localhost:3000/doc/` или `http://localhost:5001`.
 
 ### Frontend
 
-Откройте `http://localhost:80` — React-приложение.
+Откройте `http://localhost:3000` — React-приложение.
 
 ---
 

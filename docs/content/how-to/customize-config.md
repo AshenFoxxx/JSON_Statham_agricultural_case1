@@ -68,7 +68,6 @@ services:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8000
-VITE_SOLVER_URL=http://127.0.0.1:8000
 ```
 
 ### Изменение порта
@@ -96,7 +95,6 @@ export default defineConfig({
 | Переменная | Описание | По умолчанию |
 |-----------|----------|--------------|
 | `VITE_API_URL` | URL бэкенда | `http://127.0.0.1:8000` |
-| `VITE_SOLVER_URL` | URL solver API | `http://127.0.0.1:8000` |
 
 ## База данных {#baza}
 

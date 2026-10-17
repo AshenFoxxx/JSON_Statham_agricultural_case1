@@ -102,7 +102,7 @@ curl http://localhost:8000/health
 # Получить демо-данные
 curl http://localhost:8000/api/v1/demo
 
-# Получить демо-данные с флотом
+# То же тело, что seed (4 культуры, 8 покупателей)
 curl http://localhost:8000/api/v1/demo/fleet
 ```
 

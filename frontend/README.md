@@ -23,7 +23,6 @@ npm run dev
 
 ```
 VITE_API_URL=http://127.0.0.1:8000
-VITE_SOLVER_URL=http://127.0.0.1:8000
 ```
 
 Сборка: `npm run build` (каталог `dist/`). Просмотр сборки: `npm run preview`.

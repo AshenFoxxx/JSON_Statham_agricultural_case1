@@ -28,7 +28,7 @@
 
 ```bash
 git clone https://github.com/AshenFoxxx/JSON_Statham_agricultural_case1.git
-cd Hackaton
+cd JSON_Statham_agricultural_case1
 ```
 
 ---
@@ -43,9 +43,9 @@ docker compose up --build
 
 Docker запустит:
 
-1. Backend — API-сервер с CRUD и CP-SAT solverом;
-2. Frontend — React-приложение;
-3. Demo-map — отдельная карта маршрутов.
+1. Backend — API и CP-SAT;
+2. Frontend — React-приложение на порту 3000;
+3. Docs — сайт документации на порту 5001.
 
 Дождитесь сообщений:
 
@@ -76,8 +76,8 @@ Frontend запустится на `http://localhost:3000`.
 При первом запуске база данных автоматически заполняется демо-данными:
 
 - Хозяйство: Обнинск
-- 3 культуры: Клубника, Томаты, Огурцы
-- 4 покупателя с заказами
+- 4 культуры: клубника, салат, огурцы, томаты
+- 8 покупателей с заказами
 - 3 машины: Газель А, Газель Б, Рефрижератор
 
 Полный справочник API см. в разделе [API и данные](/doc/reference/api-reference).

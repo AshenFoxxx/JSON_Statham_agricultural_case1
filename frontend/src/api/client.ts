@@ -111,7 +111,7 @@ export const vehiclesApi = {
     request<void>(`/api/v1/vehicles/${id}`, { method: 'DELETE' }),
 }
 
-const SOLVER_BASE = publicApiBase(import.meta.env.VITE_SOLVER_URL, 'http://127.0.0.1:8000')
+const SOLVER_BASE = API_BASE
 
 async function solverRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${SOLVER_BASE}${path}`

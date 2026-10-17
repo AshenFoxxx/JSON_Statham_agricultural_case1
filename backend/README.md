@@ -40,8 +40,8 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 | GET, POST, PUT, DELETE | `/api/v1/buyers` | Покупатели |
 | GET, POST, PUT, DELETE | `/api/v1/orders` | Заказы |
 | GET, POST, PUT, DELETE | `/api/v1/vehicles` | Транспорт |
-| GET | `/api/v1/demo` | Пример тела `POST /plan` |
-| GET | `/api/v1/demo/fleet` | Расширенный пример |
+| GET | `/api/v1/demo` | Пример тела `POST /plan` (тот же набор, что seed) |
+| GET | `/api/v1/demo/fleet` | То же тело, что `/demo` |
 | POST | `/api/v1/plan` | Расчёт плана и геометрии рейсов |
 | POST | `/api/v1/route` | Маршрут по заданному порядку точек |
 
@@ -86,7 +86,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
       "capacity_kg": 800,
       "fuel_consumption_l_per_100km": 15,
       "fuel_price_rub_per_liter": 60,
-      "max_trips": 1,
+      "max_trips": 2,
       "max_stops": 3,
       "available": true
     }

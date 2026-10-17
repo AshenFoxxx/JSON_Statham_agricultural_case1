@@ -17,11 +17,11 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ""
-        VITE_SOLVER_URL: ""
     ports:
       - "3000:80"
     depends_on:
       - backend
+      - docs
     restart: unless-stopped
 
   docs:

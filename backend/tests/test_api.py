@@ -432,13 +432,19 @@ def test_extra_kilometers_drop_unprofitable_stop(monkeypatch) -> None:
     assert body["profit"] == 300
 
 
-def test_demo_fleet_has_three_vehicles_and_ten_buyers() -> None:
-    response = client.get("/api/v1/demo/fleet")
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body["vehicles"]) == 3
-    assert len(body["buyers"]) == 10
-    assert "longitude" in body["farm"]
+def test_demo_matches_seed_catalog() -> None:
+    demo = client.get("/api/v1/demo").json()
+    fleet = client.get("/api/v1/demo/fleet").json()
+    assert demo == fleet
+    assert {item["id"] for item in demo["products"]} == {
+        "strawberry",
+        "lettuce",
+        "cucumber",
+        "tomato",
+    }
+    assert len(demo["buyers"]) == 8
+    assert len(demo["vehicles"]) == 3
+    assert "longitude" in demo["farm"]
 
 
 def test_three_vehicles_can_split_ten_buyers(monkeypatch) -> None:

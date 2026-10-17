@@ -172,7 +172,7 @@
                         capacity_kg: vehicle.capacity_kg,
                         fuel_consumption_l_per_100km: vehicle.fuel_consumption_l_per_100km,
                         fuel_price_rub_per_liter: vehicle.fuel_price_rub_per_liter,
-                        max_trips: 1,
+                        max_trips: vehicle.max_trips || 1,
                         max_stops: vehicle.max_stops,
                         available: vehicle.available
                     };

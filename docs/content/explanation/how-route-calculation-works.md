@@ -17,9 +17,10 @@
 
 ```json
 [
-  {"id": "strawberry", "name": "Клубника", "stock_kg": 600, "max_delivery_hours": 6},
-  {"id": "tomato", "name": "Томаты", "stock_kg": 900, "max_delivery_hours": 24},
-  {"id": "cucumber", "name": "Огурцы", "stock_kg": 700, "max_delivery_hours": 18}
+  {"id": "strawberry", "name": "Клубника", "stock_kg": 800, "max_delivery_hours": 6},
+  {"id": "lettuce", "name": "Салат", "stock_kg": 500, "max_delivery_hours": 10},
+  {"id": "cucumber", "name": "Огурцы", "stock_kg": 1000, "max_delivery_hours": 18},
+  {"id": "tomato", "name": "Томаты", "stock_kg": 1200, "max_delivery_hours": 24}
 ]
 ```
 
@@ -27,8 +28,8 @@
 
 ```json
 [
-  {"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 54.5126, "latitude": 36.5927},
-  {"id": "buyer-kaluga", "name": "Сеть Калуга", "longitude": 54.5293, "latitude": 36.2754}
+  {"id": "buyer-obninsk", "name": "Рынок Обнинск", "longitude": 36.5855, "latitude": 55.112},
+  {"id": "buyer-kaluga", "name": "Сеть Калуга", "longitude": 36.2613, "latitude": 54.5138}
 ]
 ```
 
@@ -116,7 +117,7 @@ CP-SAT (Constraint Programming - SAT) — решатель ограничени�
    - Группирует одинаковые машины — симметричное breaking;
    - Ограничивает грузоподъёмность, запас, спрос;
    - Максимизирует `revenue - transport_cost`;
-   - `solver.Solve()` с `max_time=120`, `num_workers=4`.
+   - `solver.Solve()` с лимитом 25 с и `num_search_workers=8`.
 
 3. Извлечение решения:
    - `shipment_kg` — агрегация `z` по `(product, buyer, vehicle)`;
@@ -128,7 +129,7 @@ CP-SAT (Constraint Programming - SAT) — решатель ограничени�
 ### Ограничения
 
 - `AddCircuit` — обход без подциклов, с self-loops для пропущенных узлов;
-- `max_trips = 1` — один выезд на машину;
+- `max_trips` от 1 до 3: следующий выезд после возврата; смена не длиннее 12 часов;
 - `max_stops <= 5` — до 5 покупателей за выезд;
 - Грузоподъёмность, запас, спрос, время доставки.
 
@@ -149,8 +150,8 @@ profit = revenue - transport_cost
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
-| `max_time_in_seconds` | 120 | Лимит времени поиска |
-| `num_workers` | 4 | Количество потоков |
+| `max_time_in_seconds` | 25 | Лимит поиска CP-SAT |
+| `num_search_workers` | 8 | Потоки поиска |
 
 ### Статусы решения
 

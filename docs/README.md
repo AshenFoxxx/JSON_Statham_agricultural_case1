@@ -91,7 +91,7 @@ docker run -p 5001:5001 docs
 
 ```bash
 pip install -r requirements.txt
-python server.py
+python server.py --debug
 ```
 
 Откройте: `http://localhost:5001`

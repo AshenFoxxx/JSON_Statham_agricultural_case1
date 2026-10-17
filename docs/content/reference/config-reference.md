@@ -57,7 +57,7 @@
 | `capacity_kg` | Float | Грузоподъемность (кг) |
 | `fuel_consumption_l_per_100km` | Float | Расход топлива (л/100км) |
 | `fuel_price_rub_per_liter` | Float | Цена топлива (₽/л) |
-| `max_trips` | Integer | Максимум рейсов (жестко: 1) |
+| `max_trips` | Integer | Максимум рейсов (1–3) |
 | `max_stops` | Integer | Максимум остановок (1-5) |
 | `available` | Boolean | Доступен ли транспорт |
 
@@ -83,6 +83,7 @@
 |----------|----------|----------|
 | `backend.ports` | `8000:8000` | Порт API |
 | `frontend.ports` | `3000:80` | Порт веб-интерфейса |
+| `docs.ports` | `5001:5001` | Сайт документации |
 
 ### Переменные окружения
 
@@ -90,7 +91,6 @@
 |-----------|--------|:------------:|----------|
 | `DATABASE_URL` | backend | `sqlite:////data/agro.db` | URL подключения к БД (Docker) |
 | `DATABASE_URL` | backend | `sqlite:///./agro.db` | URL подключения к БД (локально) |
-| `VITE_API_URL` | frontend | `http://localhost:8000` | URL бэкенда |
-| `VITE_SOLVER_URL` | frontend | `http://localhost:8000` | URL solver API |
+| `VITE_API_URL` | frontend | `http://localhost:8000` | URL бэкенда (в Docker — пустая, запросы на тот же хост) |
 
 << [Docker-конфигурация](/doc/reference/docker-reference) | [Почему Docker](/doc/explanation/why-docker) >>

@@ -59,7 +59,7 @@ curl -X POST http://localhost:8000/api/v1/plan \
         "capacity_kg": 800,
         "fuel_consumption_l_per_100km": 15,
         "fuel_price_rub_per_liter": 60,
-        "max_trips": 1,
+        "max_trips": 2,
         "max_stops": 3,
         "available": true
       }

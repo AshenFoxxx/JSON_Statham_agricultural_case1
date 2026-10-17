@@ -22,11 +22,18 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ""
-        VITE_SOLVER_URL: ""
     ports:
       - "3000:80"
     depends_on:
       - backend
+      - docs
+    restart: unless-stopped
+
+  docs:
+    build:
+      context: ./docs
+    ports:
+      - "5001:5001"
     restart: unless-stopped
 
 volumes:
@@ -49,7 +56,7 @@ volumes:
 | Параметр | Значение | Описание |
 |----------|----------|----------|
 | `build.context` | `./frontend` | Контекст сборки |
-| `build.args` | `VITE_API_URL`, `VITE_SOLVER_URL` | Переменные сборки |
+| `build.args` | `VITE_API_URL` | Пусто — запросы на тот же хост через nginx |
 | `ports` | `3000:80` | Маппинг порта веб-интерфейса |
 | `depends_on` | `backend` | Зависимость от бэкенда |
 | `restart` | `unless-stopped` | Политика перезапуска |
@@ -101,9 +108,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 ARG VITE_API_URL=
-ARG VITE_SOLVER_URL=
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_SOLVER_URL=$VITE_SOLVER_URL
 RUN npm run build
 
 FROM nginx:alpine
@@ -117,7 +122,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 1. Builder — Node.js 20 собирает React-приложение
 2. Nginx — раздает статические файлы
-3. Nginx проксирует `/api/`, `/docs`, `/map/` на бэкенд
+3. Nginx проксирует `/api/` и `/docs` (Swagger) на бэкенд, `/doc/` — на сервис docs
 
 ### Proxy в Nginx
 
@@ -128,7 +133,7 @@ CMD ["nginx", "-g", "daemon off;"]
 | `/docs` | `http://backend:8000/docs` | Swagger UI |
 | `/openapi.json` | `http://backend:8000/openapi.json` | — |
 | `/redoc` | `http://backend:8000/redoc` | — |
-| `/map/` | `http://backend:8000/map/` | Статика |
+| `/doc/` | `http://docs:5001/doc/` | Сайт документации |
 
 ## Docs Dockerfile {#docs-dockerfile}
 
@@ -244,8 +249,6 @@ python server.py
 | Переменная | Сервис | Описание |
 |-----------|--------|----------|
 | `DATABASE_URL` | backend | URL подключения к SQLite |
-| `VITE_API_URL` | frontend | URL бэкенда (для сборки и runtime) |
-| `VITE_SOLVER_URL` | frontend | URL solver API (для сборки и runtime) |
-| `FLASK_ENV` | docs | Режим Flask (`development`) |
+| `VITE_API_URL` | frontend | URL бэкенда; в Docker пустая строка |
 
 << [API и данные](/doc/reference/api-reference) | [Параметры конфигурации](/doc/reference/config-reference) >>

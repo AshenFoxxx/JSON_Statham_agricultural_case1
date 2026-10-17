@@ -86,17 +86,19 @@ def load_toc(path: Path = TOC_FILE) -> list[dict]:
     return toc
 
 
+def md_url_path(file_path: str) -> str:
+    """TOC file path → URL path with forward slashes (Windows-safe)."""
+    return Path(file_path).as_posix().removesuffix(".md")
+
+
 def flatten_toc(toc: list[dict]) -> list[dict]:
     """Flatten nested TOC into a list of {title, file, url} dicts."""
     items = []
     for entry in toc:
-        # Use full relative path without .md extension as URL
-        file_stem = str(Path(entry['file']).with_suffix(''))
-        url = f"/doc/{file_stem}"
+        url = f"/doc/{md_url_path(entry['file'])}"
         items.append({"title": entry["title"], "file": entry["file"], "url": url})
         for child in entry.get("children", []):
-            child_stem = str(Path(child['file']).with_suffix(''))
-            child_url = f"/doc/{child_stem}"
+            child_url = f"/doc/{md_url_path(child['file'])}"
             items.append({"title": child["title"], "file": child["file"], "url": child_url})
     return items
 
@@ -162,23 +164,16 @@ def doc_root():
 def serve_doc(page_name: str):
     """Render a markdown page as HTML."""
     toc, flat = get_toc_data()
+    page_name = page_name.replace("\\", "/")
 
-    # Debug: print what we're looking for
-    print(f"[DEBUG] Looking for page: '{page_name}'", file=sys.stderr)
-
-    # Resolve the markdown file (files live in content/)
-    # Match by full relative path without .md extension
     md_file = None
     for item in flat:
-        # Strip /doc/ prefix from URL to get relative path
-        item_path = item["url"].replace("/doc/", "")
+        item_path = item["url"].removeprefix("/doc/")
         if item_path == page_name:
             md_file = BASE_DIR / "content" / item["file"]
-            print(f"[DEBUG] MATCHED: {item['file']} -> {md_file}", file=sys.stderr)
             break
 
     if md_file is None or not md_file.exists():
-        print(f"[DEBUG] NOT FOUND: md_file={md_file}, exists={md_file.exists() if md_file else 'N/A'}", file=sys.stderr)
         return render_template("404.html", page_name=page_name), 404
 
     # Read and render markdown
@@ -219,6 +214,7 @@ def main():
     parser = argparse.ArgumentParser(description="Docs Microservice")
     parser.add_argument("--port", type=int, default=5001, help="Port to serve on (default: 5001)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)")
+    parser.add_argument("--debug", action="store_true", help="Flask reloader (только локально)")
     args = parser.parse_args()
 
     print(f"  Docs Microservice")
@@ -228,7 +224,7 @@ def main():
     print(f"  Opening: http://{args.host}:{args.port}")
     print(f"  {'=' * 40}")
 
-    app.run(host=args.host, port=args.port, debug=True)
+    app.run(host=args.host, port=args.port, debug=args.debug)
 
 
 if __name__ == "__main__":
