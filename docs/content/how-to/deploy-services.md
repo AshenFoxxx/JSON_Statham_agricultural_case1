@@ -1,26 +1,21 @@
 # Практическое руководство: Развертывание сервисов
 
----
-
-## Быстрый старт
+## Быстрый старт {#bystryj-start}
 
 ```bash
 docker compose up --build
 ```
 
----
+## Структура сервисов {#struktura}
 
-## Структура сервисов
+| Сервис | Описание | Порт (хост) | Зависимости |
+|--------|----------|-------------|-------------|
+| `backend` | FastAPI + CRUD + CP-SAT Solver | `8000` | — |
+| `frontend` | React + Nginx | `3000` | `backend` |
 
-| Сервис | Описание | Порт | Зависимости |
-|--------|----------|------|-------------|
-| `db` | PostgreSQL 16 | `5432` | — |
-| `backend` | FastAPI + CRUD + Solver | `8000` | `db` |
-| `frontend` | React + Vite | `80` | `backend` |
+База данных: SQLite хранится в томе `agro-data`. Отдельный контейнер не требуется.
 
----
-
-## Управление сервисами
+## Управление сервисами {#upravlenie}
 
 ### Запуск в фоне
 
@@ -46,15 +41,7 @@ docker compose restart
 docker compose up --build -d
 ```
 
----
-
-## Управление отдельными сервисами
-
-### Только база данных
-
-```bash
-docker compose up db
-```
+## Управление отдельными сервисами {#otdelnye}
 
 ### Только Backend
 
@@ -69,9 +56,7 @@ cd frontend
 npm run dev
 ```
 
----
-
-## Просмотр логов
+## Просмотр логов {#logi}
 
 ```bash
 # Все логи
@@ -82,14 +67,9 @@ docker compose logs -f backend
 
 # Только frontend
 docker compose logs -f frontend
-
-# Только база данных
-docker compose logs -f db
 ```
 
----
-
-## Запуск shell внутри контейнера
+## Запуск shell внутри контейнера {#shell}
 
 ```bash
 # Backend
@@ -97,14 +77,9 @@ docker compose exec backend bash
 
 # Frontend
 docker compose exec frontend bash
-
-# База данных
-docker compose exec db psql -U postgres -d agro_logistics
 ```
 
----
-
-## Проверка здоровья сервисов
+## Проверка здоровья сервисов {#proverka}
 
 ```bash
 docker compose ps
@@ -114,32 +89,26 @@ docker compose ps
 
 ```
 NAME                    STATUS       PORTS
-hackaton-db-1           Up           0.0.0.0:5432->5432/tcp
 hackaton-backend-1      Up           0.0.0.0:8000->8000/tcp
-hackaton-frontend-1     Up           0.0.0.0:80->80/tcp
+hackaton-frontend-1     Up           0.0.0.0:3000->80/tcp
 ```
 
----
-
-## Проверка API
+## Проверка API {#api-check}
 
 ```bash
 # Health check
 curl http://localhost:8000/health
 
-# Получить список продуктов
-curl http://localhost:8000/api/v1/products
+# Получить демо-данные
+curl http://localhost:8000/api/v1/demo
 
-# Получить список покупателей
-curl http://localhost:8000/api/v1/buyers
-
-# Получить список транспорта
-curl http://localhost:8000/api/v1/vehicles
+# Получить демо-данные с флотом
+curl http://localhost:8000/api/v1/demo/fleet
 ```
 
----
+Полный справочник API см. в разделе [API и данные](/doc/reference/api-reference).
 
-## Очистка
+## Очистка {#ochistka}
 
 ### Удалить контейнеры и тома
 
@@ -160,17 +129,13 @@ docker system prune -f
 docker compose down -v --rmi all --remove-orphans
 ```
 
----
-
-## Мониторинг ресурсов
+## Мониторинг ресурсов {#monitoring}
 
 ```bash
 docker stats
 ```
 
----
-
-## Локальная разработка
+## Локальная разработка {#lokalnoe}
 
 ### Backend без Docker
 
@@ -190,6 +155,24 @@ npm install
 npm run dev
 ```
 
----
+## База данных {#baza}
+
+По умолчанию используется SQLite. Файл базы данных: `backend/agro.db`.
+
+### Инициализация
+
+При первом запуске создаются таблицы и загружаются демо-данные.
+
+### Сброс данных
+
+Остановите API и удалите `backend/agro.db`. При следующем запуске данные загрузятся заново.
+
+## Docker Compose {#docker-compose}
+
+### Переменные окружения
+
+| Переменная | Сервис | По умолчанию | Описание |
+|-----------|--------|:------------:|----------|
+| `DATABASE_URL` | backend | `sqlite:///./agro.db` | URL базы данных |
 
 << [Построение маршрутов](/doc/how-to/build-routes) | [Настройка конфигурации](/doc/how-to/customize-config) >>

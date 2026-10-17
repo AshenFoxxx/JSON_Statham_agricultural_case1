@@ -1,114 +1,113 @@
 # Справочник: Docker-конфигурация
 
----
-
-## docker-compose.yml
+## docker-compose.yml {#docker-compose-yml}
 
 ```yaml
-version: '3.8'
-
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: agro_logistics
-    ports:
-      - "5432:5432".
-    volumes:
-      - pgdata:/var/lib/postgresql/data.
-
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
-      - "8000:8000".
+      - "8000:8000"
+    volumes:
+      - agro-data:/data
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/agro_logistics
-    depends_on:
-      - db.
+      DATABASE_URL: sqlite:////data/agro.db
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+        VITE_SOLVER_URL: ""
     ports:
-      - "80:80".
+      - "3000:80"
     depends_on:
-      - backend.
+      - backend
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  agro-data:
 ```
-
-### Параметры services.db
-
-| Параметр | Значение | Описание |
-|----------|----------|----------|
-| `image` | `postgres:16-alpine` | Образ PostgreSQL 16 |
-| `POSTGRES_USER` | `postgres` | Имя пользователя |
-| `POSTGRES_PASSWORD` | `postgres` | Пароль |
-| `POSTGRES_DB` | `agro_logistics` | Имя базы данных |
-| `ports` | `5432:5432` | Маппинг порта |
-| `volumes` | `pgdata` | Персистентное хранилище |
 
 ### Параметры services.backend
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
-| `build.context` | `./backend` | Контекст сборки |
+| `build.context` | `.` (корень проекта) | Контекст сборки |
+| `build.dockerfile` | `backend/Dockerfile` | Файл сборки |
 | `ports` | `8000:8000` | Маппинг порта API |
-| `environment` | `DATABASE_URL=...` | Подключение к БД |
-| `depends_on` | `db` | Зависимость от БД |
+| `volumes` | `agro-data:/data` | Том для SQLite базы |
+| `environment` | `sqlite:////data/agro.db` | Подключение к SQLite |
+| `restart` | `unless-stopped` | Политика перезапуска |
 
 ### Параметры services.frontend
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
 | `build.context` | `./frontend` | Контекст сборки |
-| `ports` | `80:80` | Маппинг порта веб-интерфейса |
+| `build.args` | `VITE_API_URL`, `VITE_SOLVER_URL` | Переменные сборки |
+| `ports` | `3000:80` | Маппинг порта веб-интерфейса |
 | `depends_on` | `backend` | Зависимость от бэкенда |
+| `restart` | `unless-stopped` | Политика перезапуска |
 
----
-
-## Backend Dockerfile
+## Backend Dockerfile {#backend-dockerfile}
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
+RUN mkdir -p /data
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ .
+COPY demo-map /demo-map
+
+ENV DATABASE_URL=sqlite:////data/agro.db
+
+EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### Базовый образ
 
-`python:3.11-slim` — минимальный образ Python 3.11.
+`python:3.12-slim` — минимальный образ Python 3.12.
 
 ### Слои образа
 
-1. `python:3.11-slim` — базовый образ
-2. Установка зависимостей через pip
-3. Копирование исходного кода
+1. `python:3.12-slim` — базовый образ
+2. Создание каталога `/data` для тома
+3. Установка зависимостей через pip
+4. Копирование кода бэкенда и demo-map
+5. Запуск uvicorn
 
----
+### Контекст сборки
 
-## Frontend Dockerfile
+Dockerfile находится в `backend/`, но контекст сборки — корень проекта. Поэтому пути копирования: `backend/requirements.txt`, `backend/ .`, `demo-map /demo-map`.
+
+## Frontend Dockerfile {#frontend-dockerfile}
 
 ```dockerfile
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS build
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
+ARG VITE_API_URL=
+ARG VITE_SOLVER_URL=
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SOLVER_URL=$VITE_SOLVER_URL
 RUN npm run build
 
 FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
@@ -116,12 +115,38 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ### Многоступенчатая сборка
 
-1. Builder — Node.js собирает React-приложение
+1. Builder — Node.js 20 собирает React-приложение
 2. Nginx — раздает статические файлы
+3. Nginx проксирует `/api/`, `/docs`, `/map/` на бэкенд
 
----
+### Proxy в Nginx
 
-## .dockerignore
+| Путь | Куда проксируется | Порт бэкенда |
+|------|-------------------|-------------|
+| `/api/` | `http://backend:8000/api/` | 180s timeout |
+| `/health` | `http://backend:8000/health` | — |
+| `/docs` | `http://backend:8000/docs` | Swagger UI |
+| `/openapi.json` | `http://backend:8000/openapi.json` | — |
+| `/redoc` | `http://backend:8000/redoc` | — |
+| `/map/` | `http://backend:8000/map/` | Статика |
+
+## Docs Dockerfile {#docs-dockerfile}
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 5001
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "5001"]
+```
+
+Docs-сервис запускается отдельно от docker-compose. Это Flask-приложение на порту 5001.
+
+## .dockerignore {#dockerignore}
 
 ### Для backend/
 
@@ -131,6 +156,7 @@ __pycache__/
 *.egg-info/
 venv/
 .env
+agro.db
 ```
 
 ### Для frontend/
@@ -141,9 +167,7 @@ dist/
 .env
 ```
 
----
-
-## Команды Docker
+## Команды Docker {#komandy}
 
 ### Сборка
 
@@ -174,7 +198,6 @@ docker compose down -v --rmi all    # + удалить образы
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
-docker compose logs -f db
 docker compose logs -f              # все сервисы
 ```
 
@@ -183,19 +206,46 @@ docker compose logs -f              # все сервисы
 ```bash
 docker compose exec backend bash
 docker compose exec frontend bash
-docker compose exec db psql -U postgres -d agro_logistics
 ```
 
----
+## Локальный запуск без Docker
 
-## Переменные окружения
+### Backend
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### Frontend
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+### Docs
+
+```bash
+cd docs
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python server.py
+```
+
+## Переменные окружения {#peremennye}
 
 | Переменная | Сервис | Описание |
 |-----------|--------|----------|
-| `DATABASE_URL` | backend | URL подключения к PostgreSQL |
-| `VITE_API_URL` | frontend | URL бэкенда |
+| `DATABASE_URL` | backend | URL подключения к SQLite |
+| `VITE_API_URL` | frontend | URL бэкенда (для сборки и runtime) |
+| `VITE_SOLVER_URL` | frontend | URL solver API (для сборки и runtime) |
 | `FLASK_ENV` | docs | Режим Flask (`development`) |
-
----
 
 << [API и данные](/doc/reference/api-reference) | [Параметры конфигурации](/doc/reference/config-reference) >>

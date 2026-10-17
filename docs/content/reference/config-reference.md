@@ -1,16 +1,15 @@
 # Справочник: Параметры конфигурации
 
----
-
-## Backend конфигурация
+## Backend конфигурация {#backend}
 
 ### database.py
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
-| `DATABASE_URL` | `postgresql://postgres:postgres@db:5432/agro_logistics` | URL подключения к PostgreSQL |
+| `DATABASE_URL` | `sqlite:///./agro.db` | URL подключения к SQLite (локально) |
+| `DATABASE_URL` | `sqlite:////data/agro.db` | URL подключения к SQLite (Docker) |
 
-### models.py — Модели данных
+### models.py — Модели данных {#modeli}
 
 #### Farm
 
@@ -43,7 +42,7 @@
 
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `id` | String | Идентификатор (авто: `order-{product_id}-{buyer_id}`) |
+| `id` | String | Идентификатор (авто: UUID) |
 | `product_id` | String | ID продукта |
 | `buyer_id` | String | ID покупателя |
 | `demand_kg` | Float | Спрос (кг) |
@@ -58,13 +57,11 @@
 | `capacity_kg` | Float | Грузоподъемность (кг) |
 | `fuel_consumption_l_per_100km` | Float | Расход топлива (л/100км) |
 | `fuel_price_rub_per_liter` | Float | Цена топлива (₽/л) |
-| `max_trips` | Integer | Максимум рейсов (1-10) |
+| `max_trips` | Integer | Максимум рейсов (жестко: 1) |
 | `max_stops` | Integer | Максимум остановок (1-5) |
 | `available` | Boolean | Доступен ли транспорт |
 
----
-
-## Frontend конфигурация
+## Frontend конфигурация {#frontend}
 
 ### vite.config.ts
 
@@ -78,29 +75,22 @@
 |-----------|:------------:|----------|
 | `VITE_API_URL` | `http://localhost:8000` | URL бэкенда |
 
----
-
-## Docker Compose конфигурация
+## Docker Compose конфигурация {#docker-compose}
 
 ### Сервисы
 
 | Параметр | Значение | Описание |
 |----------|----------|----------|
-| `db.image` | `postgres:16-alpine` | Образ PostgreSQL |
-| `db.ports` | `5432:5432` | Порт базы данных |
 | `backend.ports` | `8000:8000` | Порт API |
-| `frontend.ports` | `80:80` | Порт веб-интерфейса |
+| `frontend.ports` | `3000:80` | Порт веб-интерфейса |
 
 ### Переменные окружения
 
 | Переменная | Сервис | По умолчанию | Описание |
 |-----------|--------|:------------:|----------|
-| `POSTGRES_USER` | db | `postgres` | Имя пользователя БД |
-| `POSTGRES_PASSWORD` | db | `postgres` | Пароль БД |
-| `POSTGRES_DB` | db | `agro_logistics` | Имя базы данных |
-| `DATABASE_URL` | backend | `postgresql://postgres:postgres@db:5432/agro_logistics` | URL подключения к БД |
+| `DATABASE_URL` | backend | `sqlite:////data/agro.db` | URL подключения к БД (Docker) |
+| `DATABASE_URL` | backend | `sqlite:///./agro.db` | URL подключения к БД (локально) |
 | `VITE_API_URL` | frontend | `http://localhost:8000` | URL бэкенда |
-
----
+| `VITE_SOLVER_URL` | frontend | `http://localhost:8000` | URL solver API |
 
 << [Docker-конфигурация](/doc/reference/docker-reference) | [Почему Docker](/doc/explanation/why-docker) >>

@@ -23,16 +23,24 @@ Hackaton/
 │       ├── main.py             # FastAPI приложение
 │       ├── models.py           # SQLAlchemy модели
 │       ├── crud.py             # CRUD операции
-│       ├── database.py         # Подключение к БД
+│       ├── database.py         # Подключение к БД (SQLite)
+│       ├── solver_cp_sat.py    # OR-Tools CP-SAT solver
+│       ├── routing.py          # OSRM маршрутизация
+│       ├── planning.py         # Построение плана
+│       ├── schemas.py          # Pydantic схемы
+│       ├── demo_data.py        # Демо-данные
 │       └── seed.py             # Начальные данные
 ├── frontend/
 │   ├── Dockerfile              # Образ фронтенда (React)
 │   ├── package.json            # Node.js-зависимости
 │   └── src/                    # Исходный код React
+├── demo-map/                   # Отдельная карта маршрутов
 └── docs/
     ├── Dockerfile              # Образ документации
     └── .dockerignore
 ```
+
+Полная структура проекта описана в разделе [Архитектура системы](/doc/reference/architecture).
 
 ---
 
@@ -51,9 +59,10 @@ docker compose version
 
 | Сервис | Описание | Порт | Зависимости |
 |--------|----------|------|-------------|
-| `db` | PostgreSQL 16 | `5432` | — |
-| `backend` | FastAPI + CRUD + Solver | `8000` | `db` |
+| `backend` | FastAPI + CRUD + CP-SAT Solver | `8000` | — |
 | `frontend` | React + Vite | `80` | `backend` |
+
+База данных: SQLite хранится в томе `agro-data`. Отдельный контейнер не требуется.
 
 ---
 
@@ -65,9 +74,8 @@ docker compose up --build
 
 Docker запустит:
 
-1. PostgreSQL — база данных
-2. Backend — API-сервер с CRUD и solverом
-3. Frontend — React-приложение
+1. Backend — API-сервер с CRUD и solverом;
+2. Frontend — React-приложение.
 
 Дождитесь сообщений:
 
@@ -96,6 +104,10 @@ curl http://localhost:8000/health
 ### API документация
 
 Откройте `http://localhost:8000/docs` — интерактивная документация Swagger UI.
+
+### Карта маршрутов
+
+Откройте `http://localhost:8000/map/` — отдельная карта с демо-маршрутами.
 
 ### Frontend
 
@@ -135,6 +147,8 @@ docker compose down
 docker compose down -v --rmi all
 ```
 
+Подробные команды управления см. в разделе [Развёртывание сервисов](/doc/how-to/deploy-services).
+
 ---
 
 ## Шаг 6. Просмотр логов
@@ -148,9 +162,6 @@ docker compose logs -f backend
 
 # Только frontend
 docker compose logs -f frontend
-
-# Только база данных
-docker compose logs -f db
 ```
 
 ---
@@ -163,26 +174,6 @@ docker compose exec backend bash
 
 # Frontend
 docker compose exec frontend bash
-
-# База данных
-docker compose exec db psql -U postgres -d agro_logistics
-```
-
----
-
-## Шаг 8. Проверка здоровья сервисов
-
-```bash
-docker compose ps
-```
-
-Ожидаемый вывод:
-
-```
-NAME                    STATUS       PORTS
-hackaton-db-1           Up           0.0.0.0:5432->5432/tcp
-hackaton-backend-1      Up           0.0.0.0:8000->8000/tcp
-hackaton-frontend-1     Up           0.0.0.0:80->80/tcp
 ```
 
 ---
@@ -206,6 +197,8 @@ npm run dev
 
 Vite автоматически перезагружает при изменении файлов.
 
+Подробнее о локальной разработке см. [Развёртывание сервисов](/doc/how-to/deploy-services).
+
 ---
 
 ## Устранение неполадок
@@ -217,28 +210,9 @@ lsof -i :8000
 kill <PID>
 ```
 
-### Порт 5432 уже занят
+### Ошибка подключения к OSRM
 
-```bash
-lsof -i :5432
-kill <PID>
-```
-
-### Ошибка подключения к БД
-
-Убедитесь, что база запущена:
-
-```bash
-docker compose ps db
-```
-
-Перезапустите базу:
-
-```bash
-docker compose up -d db
-sleep 5
-docker compose up -d backend
-```
+Если OSRM недоступен, API возвращает код 502 при расчёте маршрутов. Проверьте подключение к интернету.
 
 ### Ошибка сборки
 

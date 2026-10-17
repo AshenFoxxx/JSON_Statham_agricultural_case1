@@ -7,10 +7,10 @@
 В этом руководстве вы:
 
 1. Клонируете репозиторий
-2. Запустите PostgreSQL через Docker
-3. Запустите бэкенд (FastAPI) и фронтенд (React)
+2. Запустите проект через Docker
+3. Откроете веб-интерфейс в браузере
 4. Создадите данные через API
-5. Откроете веб-интерфейс в браузере
+5. Рассчитаете оптимальные маршруты
 
 ---
 
@@ -18,7 +18,6 @@
 
 - Docker Desktop — [скачать](https://www.docker.com/products/docker-desktop/);
 - Git — [скачать](https://git-scm.com/);
-- Node.js 18+ — [скачать](https://nodejs.org/);
 - Любой браузер.
 
 ---
@@ -34,48 +33,29 @@ cd Hackaton
 
 ---
 
-## Шаг 2. Запуск базы данных
+## Шаг 2. Запуск проекта
 
-PostgreSQL запускается через Docker Compose:
-
-```bash
-docker compose up -d db
-```
-
-База данных будет доступна на порту `5432`.
-
-Дождитесь сообщения:
-
-```
-Container hackaton-db-1  Started
-```
-
-Проверьте, что база работает:
+Проект запускается через Docker Compose. SQLite используется по умолчанию, отдельная база данных не требуется:
 
 ```bash
-docker compose ps
+docker compose up --build
 ```
 
-Ожидаемый вывод:
+Docker запустит:
+
+1. Backend — API-сервер с CRUD и CP-SAT solverом;
+2. Frontend — React-приложение;
+3. Demo-map — отдельная карта маршрутов.
+
+Дождитесь сообщений:
 
 ```
-NAME             STATUS       PORTS
-hackaton-db-1      Up           0.0.0.0:5432->5432/tcp
+backend_1        | Application startup complete.
+backend_1        | Uvicorn running on http://0.0.0.0:8000
+frontend_1       | Local: http://localhost:3000
 ```
 
----
-
-## Шаг 3. Запуск бэкенда
-
-Backend — это FastAPI-сервер с CRUD API и solverом для маршрутизации.
-
-```bash
-docker compose up -d backend
-```
-
-Бэкенд запустится на `http://localhost:8000`.
-
-Проверьте доступность:
+Backend запустится на `http://localhost:8000`. Проверьте доступность:
 
 ```bash
 curl http://localhost:8000/health
@@ -87,89 +67,24 @@ curl http://localhost:8000/health
 {"status": "ok"}
 ```
 
-Интерактивная API-документация доступна по адресу:
-`http://localhost:8000/docs`
-
----
-
-## Шаг 4. Запуск фронтенда
-
-Frontend — это React-приложение с TypeScript и Tailwind CSS.
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
 Frontend запустится на `http://localhost:3000`.
 
 ---
 
-## Шаг 5. Создание данных
+## Шаг 3. Проверка данных
 
-Откройте `http://localhost:8000/docs` — здесь доступна интерактивная документация API.
+При первом запуске база данных автоматически заполняется демо-данными:
 
-Или используйте `curl`:
+- Хозяйство: Обнинск
+- 3 культуры: Клубника, Томаты, Огурцы
+- 4 покупателя с заказами
+- 3 машины: Газель А, Газель Б, Рефрижератор
 
-### Создать хозяйство
-
-```bash
-curl -X POST http://localhost:8000/api/v1/farm \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "ООО АгроТех",
-    "longitude": 54.9815,
-    "latitude": 36.2523
-  }'
-```
-
-### Добавить продукцию
-
-```bash
-curl -X POST http://localhost:8000/api/v1/products \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "strawberry",
-    "name": "Клубника",
-    "stock_kg": 600,
-    "max_delivery_hours": 6
-  }'
-```
-
-### Добавить покупателя
-
-```bash
-curl -X POST http://localhost:8000/api/v1/buyers \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "buyer-obninsk",
-    "name": "Рынок Обнинск",
-    "longitude": 54.5126,
-    "latitude": 36.5927
-  }'
-```
-
-### Добавить транспорт
-
-```bash
-curl -X POST http://localhost:8000/api/v1/vehicles \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "vehicle-a",
-    "name": "Газель А",
-    "capacity_kg": 800,
-    "fuel_consumption_l_per_100km": 10,
-    "fuel_price_rub_per_liter": 62,
-    "max_trips": 2,
-    "max_stops": 3,
-    "available": true
-  }'
-```
+Полный справочник API см. в разделе [API и данные](/doc/reference/api-reference).
 
 ---
 
-## Шаг 6. Открытие веб-интерфейса
+## Шаг 4. Открытие веб-интерфейса
 
 Откройте `http://localhost:3000` — вы увидите интерфейс АгроЛогистики:
 
@@ -177,22 +92,25 @@ curl -X POST http://localhost:8000/api/v1/vehicles \
 - Хозяйство — информация о ферме;
 - Покупатели — база покупателей и заказы;
 - Машины — управление автопарком;
-- Маршруты — планирование и расчет оптимальных маршрутов.
+- Маршруты — планирование и расчёт оптимальных маршрутов;
+- Карта — визуализация всех рейсов.
 
 ---
 
-## Шаг 7. Расчет маршрутов
+## Шаг 5. Расчёт маршрутов
 
 На странице «Маршруты» нажмите кнопку «Рассчитать оптимальные маршруты».
 
-Это отправит данные на бэкенд для расчета оптимальных маршрутов доставки.
+Это отправит данные на бэкенд для расчёта оптимальных маршрутов доставки.
+
+Подробный алгоритм расчёта см. в разделе [Как работает расчёт маршрутов](/doc/explanation/how-route-calculation-works).
 
 ---
 
 ## Что дальше
 
-- Попробуйте добавить больше продукции, покупателей и машин;
-- Создайте заказы для покупателей;
+- Попробуйте изменить данные на страницах склада, покупателей и машин;
+- Нажмите «Рассчитать» снова — план пересчитается;
 - Изучите API документацию;
 - Ознакомьтесь с архитектурой системы.
 

@@ -1,8 +1,6 @@
 # Справочник: API и данные
 
----
-
-## Базовый URL
+## Базовый URL {#bazovyi-url}
 
 ```
 http://localhost:8000/api/v1
@@ -10,9 +8,7 @@ http://localhost:8000/api/v1
 
 Интерактивная документация: `http://localhost:8000/docs`
 
----
-
-## Сущности
+## Сущности {#sushchnosti}
 
 ### Хозяйство (Farm)
 
@@ -63,8 +59,6 @@ curl -X PUT http://localhost:8000/api/v1/farm \
   -H "Content-Type: application/json" \
   -d '{"name": "ООО АгроТех", "longitude": 54.9815, "latitude": 36.2523}'
 ```
-
----
 
 ### Продукция (Products)
 
@@ -120,8 +114,6 @@ curl -X PUT http://localhost:8000/api/v1/products/strawberry \
 curl -X DELETE http://localhost:8000/api/v1/products/strawberry
 ```
 
----
-
 ### Покупатели (Buyers)
 
 | Поле | Тип | Описание |
@@ -175,8 +167,6 @@ curl -X PUT http://localhost:8000/api/v1/buyers/buyer-obninsk \
 ```bash
 curl -X DELETE http://localhost:8000/api/v1/buyers/buyer-obninsk
 ```
-
----
 
 ### Заказы (Orders)
 
@@ -233,8 +223,6 @@ curl -X PUT http://localhost:8000/api/v1/orders/strawberry/buyer-obninsk \
 ```bash
 curl -X DELETE http://localhost:8000/api/v1/orders/strawberry/buyer-obninsk
 ```
-
----
 
 ### Транспорт (Vehicles)
 
@@ -302,54 +290,168 @@ curl -X PUT http://localhost:8000/api/v1/vehicles/vehicle-a \
 curl -X DELETE http://localhost:8000/api/v1/vehicles/vehicle-a
 ```
 
----
-
-## Планирование (Solver)
+## Планирование и маршрутизация {#planirovanie}
 
 ### POST /plan
 
-Рассчитать оптимальные маршруты доставки.
+Рассчитать оптимальный план поставок с использованием CP-SAT solver.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/plan \
   -H "Content-Type: application/json" \
   -d '{
-    "products": [...],
-    "buyers": [...],
-    "vehicles": [...]
+    "farm": {"name": "Хозяйство Обнинск", "longitude": 36.6103, "latitude": 55.0969},
+    "products": [
+      {"id": "strawberry", "name": "Клубника", "stock_kg": 600, "max_delivery_hours": 6}
+    ],
+    "buyers": [
+      {
+        "id": "buyer-obninsk",
+        "name": "Рынок Обнинск",
+        "longitude": 36.5855,
+        "latitude": 55.112,
+        "orders": [
+          {"product_id": "strawberry", "demand_kg": 200, "price_per_kg": 160}
+        ]
+      }
+    ],
+    "vehicles": [
+      {
+        "id": "vehicle-a",
+        "name": "Газель А",
+        "capacity_kg": 800,
+        "fuel_consumption_l_per_100km": 15,
+        "fuel_price_rub_per_liter": 60,
+        "max_trips": 1,
+        "max_stops": 3,
+        "available": true
+      }
+    ]
   }'
 ```
 
 Тело запроса:
 
-- `products` — массив объектов Product;
-- `buyers` — массив объектов Buyer;
-- `vehicles` — массив объектов Vehicle.
+- `farm` — объект хозяйства с координатами;
+- `products` — массив культур с запасами и временем доставки;
+- `buyers` — массив покупателей с заказами;
+- `vehicles` — массив транспортных средств;
+- `unload_seconds_per_kg` — время разгрузки на кг (опционально).
 
 Ответ:
 
 ```json
 {
-  "routes": [
+  "status": "optimal",
+  "objective": "maximize_profit",
+  "message": "План рассчитан по данным запроса.",
+  "assumptions": ["Срок культуры ограничивает только время в пути до покупателя."],
+  "shipments": [
+    {
+      "product_id": "strawberry",
+      "buyer_id": "buyer-obninsk",
+      "vehicle_id": "vehicle-a",
+      "quantity_kg": 200
+    }
+  ],
+  "trips": [
     {
       "vehicle_id": "vehicle-a",
-      "vehicle_name": "Газель А",
-      "buyer_id": "buyer-obninsk",
-      "buyer_name": "Рынок Обнинск",
+      "stops": [
+        {
+          "buyer_id": "buyer-obninsk",
+          "arrival_hours": 0.5,
+          "load_kg": 200
+        }
+      ],
+      "distance_km": 45.0,
+      "cost": 67.5,
+      "load_kg": 200,
+      "waypoints": [...],
+      "geometry": {"type": "LineString", "coordinates": [...]}
+    }
+  ],
+  "revenue": 32000,
+  "transport_cost": 67.5,
+  "profit": 31932.5,
+  "balances": [
+    {
       "product_id": "strawberry",
-      "product_name": "Клубника",
-      "quantity_kg": 200,
-      "distance_km": 45,
-      "travel_time_hours": 1,
-      "cost": 6000
+      "stock_kg": 600,
+      "shipped_kg": 200,
+      "leftover_kg": 400,
+      "loss_kg": 0
     }
   ]
 }
 ```
 
+Статусы ответа:
+
+| Статус | Описание |
+|--------|----------|
+| `optimal` | Доказан оптимум |
+| `feasible` | Найден план, оптимум не доказан |
+| `infeasible` | Нет допустимого плана |
+| `not_solved` | Решение не выполнено |
+
+### POST /route
+
+Рассчитать маршрут между точками через OSRM.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/route \
+  -H "Content-Type: application/json" \
+  -d '{
+    "points": [
+      {"id": "farm", "longitude": 36.6103, "latitude": 55.0969},
+      {"id": "buyer-obninsk", "longitude": 36.5855, "latitude": 55.112}
+    ],
+    "fuel_consumption_l_per_100km": 15,
+    "fuel_price_rub_per_liter": 60
+  }'
+```
+
+Ответ:
+
+```json
+{
+  "distance_km": 45.0,
+  "duration_hours": 0.5,
+  "fuel_liters": 6.75,
+  "fuel_cost_rub": 405,
+  "legs": [
+    {
+      "from_id": "farm",
+      "to_id": "buyer-obninsk",
+      "distance_km": 45.0,
+      "hours": 0.5
+    }
+  ],
+  "waypoints": [...],
+  "geometry": {"type": "LineString", "coordinates": [...]}
+}
+```
+
+### GET /demo
+
+Получить демо-данные для одного покупателя.
+
+```bash
+curl http://localhost:8000/api/v1/demo
+```
+
+### GET /demo/fleet
+
+Получить демо-данные для нескольких покупателей.
+
+```bash
+curl http://localhost:8000/api/v1/demo/fleet
+```
+
 ---
 
-## Health Check
+## Health Check {#health-check}
 
 ### GET /health
 
@@ -367,7 +469,7 @@ curl http://localhost:8000/health
 
 ---
 
-## Коды ответов
+## Коды ответов {#kody}
 
 | Код | Описание |
 |-----|----------|

@@ -1,8 +1,6 @@
 # Практическое руководство: Настройка конфигурации
 
----
-
-## Переменные окружения бэкенда
+## Переменные окружения бэкенда {#peremennye}
 
 ### База данных
 
@@ -12,46 +10,36 @@
 services:
   backend:
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/agro_logistics.
+      - DATABASE_URL=sqlite:////data/agro.db
 ```
 
 | Переменная | Описание | По умолчанию |
 |-----------|----------|--------------|
-| `DATABASE_URL` | URL подключения к PostgreSQL | `postgresql://postgres:postgres@db:5432/agro_logistics` |
+| `DATABASE_URL` | URL подключения к SQLite | `sqlite:////data/agro.db` (Docker) |
+| `DATABASE_URL` | URL подключения к SQLite | `sqlite:///./agro.db` (локально) |
 
-### Изменение параметров БД
+### Использование PostgreSQL
 
 ```yaml
 services:
-  db:
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
   backend:
     environment:
-      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydb.
+      - DATABASE_URL=postgresql://user:password@db:5432/agrologistics
 ```
 
----
-
-## Настройка Docker Compose
+## Настройка Docker Compose {#docker-compose}
 
 ### Изменение портов
 
 ```yaml
 services:
-  db:
-    ports:
-      - "5433:5432"   # БД на порту 5433.
-
   backend:
     ports:
-      - "9000:8000"   # Backend на порту 9000.
+      - "9000:8000"   # Backend на порту 9000
 
   frontend:
     ports:
-      - "3000:80"     # Frontend на порту 3000.
+      - "3000:80"     # Frontend на порту 3000
 ```
 
 ### Режим разработки
@@ -60,7 +48,7 @@ services:
 services:
   backend:
     volumes:
-      - ./backend/app:/app/app    # Hot-reload кода.
+      - ./backend/app:/app/app    # Hot-reload кода
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -72,46 +60,15 @@ services:
     command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
----
-
-## Настройка базы данных
-
-### Подключение к БД
-
-```bash
-docker compose exec db psql -U postgres -d agro_logistics
-```
-
-### Создание резервной копии
-
-```bash
-docker compose exec db pg_dump -U postgres agro_logistics > backup.sql
-```
-
-### Восстановление из резервной копии
-
-```bash
-cat backup.sql | docker compose exec -T db psql -U postgres agro_logistics
-```
-
-### Сброс данных
-
-```bash
-docker compose down -v
-docker compose up -d db
-docker compose up -d backend
-```
-
----
-
-## Настройка Frontend
+## Настройка Frontend {#frontend}
 
 ### Переменные окружения
 
 Создайте файл `.env` в директории `frontend`:
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=http://127.0.0.1:8000
+VITE_SOLVER_URL=http://127.0.0.1:8000
 ```
 
 ### Изменение порта
@@ -126,47 +83,29 @@ export default defineConfig({
 })
 ```
 
----
-
-## Настройка PostgreSQL
-
-### Изменение параметров
-
-```yaml
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: agro_logistics
-    command: >
-      postgres
-      -c max_connections=100
-      -c shared_buffers=256MB
-      -c effective_cache_size=512MB
-    ports:
-      - "5432:5432".
-    volumes:
-      - pgdata:/var/lib/postgresql/data.
-```
-
----
-
-## Переменные окружения
+## Переменные окружения {#spisok}
 
 ### Backend
 
 | Переменная | Описание | По умолчанию |
 |-----------|----------|--------------|
-| `DATABASE_URL` | URL подключения к PostgreSQL | `postgresql://postgres:postgres@db:5432/agro_logistics` |
+| `DATABASE_URL` | URL подключения к БД | `sqlite:///./agro.db` |
 
 ### Frontend
 
 | Переменная | Описание | По умолчанию |
 |-----------|----------|--------------|
-| `VITE_API_URL` | URL бэкенда | `http://localhost:8000` |
+| `VITE_API_URL` | URL бэкенда | `http://127.0.0.1:8000` |
+| `VITE_SOLVER_URL` | URL solver API | `http://127.0.0.1:8000` |
 
----
+## База данных {#baza}
+
+### SQLite
+
+По умолчанию используется SQLite. Файл базы данных: `backend/agro.db`.
+
+### Сброс данных
+
+Остановите API и удалите `backend/agro.db`. При следующем запуске данные загрузятся заново.
 
 << [Развертывание сервисов](/doc/how-to/deploy-services) | [Архитектура системы](/doc/reference/architecture) >>
