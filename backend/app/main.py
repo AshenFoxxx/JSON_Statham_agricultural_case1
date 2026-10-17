@@ -8,8 +8,16 @@ from fastapi.staticfiles import StaticFiles
 from app.demo_data import demo_fleet_request, demo_request
 from app.db_routes import router as db_router
 from app.planning import build_plan
-from app.routing import RouteError, fetch_route
-from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
+from app.routing import RouteError, fetch_matrix, fetch_route
+from app.schemas import (
+    MatrixPrefetchRequest,
+    MatrixPrefetchResponse,
+    PlanRequest,
+    PlanResponse,
+    RouteRequest,
+    RouteResponse,
+)
+from app.solver_cp_sat import FARM
 
 
 def init_db() -> None:
@@ -66,6 +74,18 @@ def demo() -> PlanRequest:
 @app.get("/api/v1/demo/fleet", response_model=PlanRequest)
 def demo_fleet() -> PlanRequest:
     return demo_fleet_request()
+
+
+@app.post("/api/v1/matrix", response_model=MatrixPrefetchResponse)
+def prefetch_matrix(body: MatrixPrefetchRequest) -> MatrixPrefetchResponse:
+    """Греет кэш матрицы OSRM тем же набором точек, что потом уйдёт в POST /plan."""
+    points = [(FARM, body.farm.longitude, body.farm.latitude)]
+    points.extend((buyer.id, buyer.longitude, buyer.latitude) for buyer in body.buyers)
+    try:
+        fetch_matrix(points)
+    except RouteError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return MatrixPrefetchResponse(ok=True, points=len(points))
 
 
 @app.post("/api/v1/plan", response_model=PlanResponse)

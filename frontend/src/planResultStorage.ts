@@ -7,6 +7,7 @@ export type PlanSummary = {
   status: string
   message: string
   assumptions: string[]
+  search_seconds?: number
 }
 
 export type PlanSnapshot = {

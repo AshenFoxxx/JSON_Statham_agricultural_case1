@@ -67,6 +67,22 @@ class RoutePoint(BaseModel):
     latitude: float = Field(ge=-90, le=90)
 
 
+class MatrixBuyer(BaseModel):
+    id: str = Field(min_length=1)
+    longitude: float = Field(ge=-180, le=180)
+    latitude: float = Field(ge=-90, le=90)
+
+
+class MatrixPrefetchRequest(BaseModel):
+    farm: Farm
+    buyers: list[MatrixBuyer] = Field(min_length=1)
+
+
+class MatrixPrefetchResponse(BaseModel):
+    ok: bool = True
+    points: int
+
+
 class RouteRequest(BaseModel):
     points: list[RoutePoint] = Field(min_length=2)
     fuel_consumption_l_per_100km: float = Field(default=35, gt=0)
@@ -103,8 +119,8 @@ class PlanRequest(BaseModel):
     time_limit_seconds: float = Field(
         default=25,
         ge=5,
-        le=180,
-        description="Лимит поиска CP-SAT, секунды. По истечении — лучший найденный план (status feasible), не обязательно доказанный оптимум.",
+        le=600,
+        description="Лимит поиска CP-SAT, секунды (5–600). По истечении — лучший найденный план (status feasible), не обязательно доказанный оптимум.",
     )
 
     @model_validator(mode="after")
@@ -198,3 +214,8 @@ class PlanResponse(BaseModel):
     transport_cost: float = Field(description="Сумма стоимости выполненных рейсов, руб")
     profit: float = Field(description="Выручка минус транспортные затраты, руб")
     balances: list[ProductBalance]
+    search_seconds: float = Field(
+        default=0,
+        ge=0,
+        description="Стены часов на сбор модели и поиск CP-SAT, без OSRM",
+    )

@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from time import perf_counter
 
 from app.routing import fetch_matrix, fetch_route
 from app.schemas import PlanRequest, PlanResponse, RoutePoint
@@ -11,7 +12,9 @@ def build_plan(request: PlanRequest) -> PlanResponse:
     buyers = {buyer.id: buyer for buyer in request.buyers}
     points.extend((buyer.id, buyer.longitude, buyer.latitude) for buyer in request.buyers)
     graph = fetch_matrix(points)
+    started = perf_counter()
     plan = solve_plan(request, graph, time_limit_seconds=request.time_limit_seconds)
+    search_seconds = round(perf_counter() - started, 2)
     vehicles = {vehicle.id: vehicle for vehicle in request.vehicles}
 
     def route_trip(trip):
@@ -63,5 +66,6 @@ def build_plan(request: PlanRequest) -> PlanResponse:
             "trips": trips,
             "transport_cost": transport_cost,
             "profit": round(plan.revenue - transport_cost, 2),
+            "search_seconds": search_seconds,
         }
     )

@@ -1,8 +1,12 @@
+from fastapi.testclient import TestClient
 from ortools.sat.python import cp_model
 
+from app.main import app
 from app.routing import clear_matrix_cache, fetch_matrix, process_route, process_table
 from app.solver_cp_sat import _status_from_cpsat
 from app.schemas import SolverStatus
+
+client = TestClient(app)
 
 
 def test_osrm_response_becomes_plan_legs() -> None:
@@ -69,6 +73,37 @@ def test_matrix_cache_skips_osrm_when_coordinates_unchanged(monkeypatch) -> None
 
     fetch_matrix([("farm", 36.6103, 55.0969), ("near", 36.8, 55.2)])
     assert len(calls) == 2
+
+
+def test_prefetch_matrix_endpoint_fills_cache(monkeypatch) -> None:
+    clear_matrix_cache()
+    calls: list[str] = []
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "code": "Ok",
+                "durations": [[0, 3600], [3600, 0]],
+                "distances": [[0, 10000], [10000, 0]],
+            }
+
+    def fake_get(url: str, timeout: int = 30):
+        calls.append(url)
+        return _Response()
+
+    monkeypatch.setattr("requests.get", fake_get)
+    body = {
+        "farm": {"name": "Хозяйство", "longitude": 36.6103, "latitude": 55.0969},
+        "buyers": [{"id": "near", "longitude": 36.7, "latitude": 55.2}],
+    }
+    response = client.post("/api/v1/matrix", json=body)
+    assert response.status_code == 200
+    assert response.json()["points"] == 2
+    fetch_matrix([("farm", 36.6103, 55.0969), ("near", 36.7, 55.2)])
+    assert len(calls) == 1
 
 
 def test_cpsat_feasible_is_not_called_optimal() -> None:

@@ -35,5 +35,7 @@
       file: explanation/why-docker.md
     - title: Как работает расчёт маршрута
       file: explanation/how-route-calculation-works.md
+    - title: Модель solver
+      file: explanation/solver.md
     - title: Архитектурные решения
       file: explanation/architectural-decisions.md

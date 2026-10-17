@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react'
-import { farmApi, productsApi, buyersApi, vehiclesApi, ordersApi, solverApi, type Farm, type Product, type Buyer, type Vehicle, type BuyerOrder, type SolverTrip, type SolverShipment, type SolverBalance } from '../api/client'
+import { farmApi, productsApi, buyersApi, vehiclesApi, ordersApi, solverApi, matrixApi, type Farm, type Product, type Buyer, type Vehicle, type BuyerOrder, type SolverTrip, type SolverShipment, type SolverBalance } from '../api/client'
 import RouteLineMap from '../components/RouteLineMap'
 import AllRoutesMap, { tripColor } from '../components/AllRoutesMap'
 import { loadPlanSnapshot, savePlanSnapshot } from '../planResultStorage'
+
+const SEARCH_SECONDS_MIN = 5
+const SEARCH_SECONDS_MAX = 600
+
+function clampSearchSeconds(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 25
+  }
+  return Math.min(SEARCH_SECONDS_MAX, Math.max(SEARCH_SECONDS_MIN, Math.round(value)))
+}
 
 export default function Routes() {
   const [saved] = useState(() => loadPlanSnapshot())
@@ -16,6 +26,7 @@ export default function Routes() {
     status: string
     message: string
     assumptions: string[]
+    search_seconds?: number
   } | null>(() => saved?.summary || null)
   const [products, setProducts] = useState<Product[]>([])
   const [buyers, setBuyers] = useState<Buyer[]>([])
@@ -35,7 +46,9 @@ export default function Routes() {
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [shipmentsOpen, setShipmentsOpen] = useState(() => saved?.shipmentsOpen || false)
   const [unloadSecondsPerKg, setUnloadSecondsPerKg] = useState(() => saved?.unloadSecondsPerKg ?? 2)
-  const [timeLimitSeconds, setTimeLimitSeconds] = useState(() => saved?.timeLimitSeconds ?? 25)
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(() =>
+    clampSearchSeconds(saved?.timeLimitSeconds ?? 25),
+  )
   const [assumptionsOpen, setAssumptionsOpen] = useState(() => saved?.assumptionsOpen || false)
 
   const fetchData = async () => {
@@ -86,6 +99,34 @@ export default function Routes() {
       setSelectedOrderId(orders[0].id)
     }
   }, [orders, selectedOrderId])
+
+  useEffect(() => {
+    if (!farm) {
+      return
+    }
+    const buyersWithOrders = buyers.filter((buyer) =>
+      orders.some((order) => order.buyer_id === buyer.id),
+    )
+    if (buyersWithOrders.length === 0) {
+      return
+    }
+    matrixApi
+      .prefetch({
+        farm: {
+          name: farm.name,
+          longitude: farm.longitude,
+          latitude: farm.latitude,
+        },
+        buyers: buyersWithOrders.map((buyer) => ({
+          id: buyer.id,
+          longitude: buyer.longitude,
+          latitude: buyer.latitude,
+        })),
+      })
+      .catch(() => {
+        // OSRM мог не ответить — расчёт всё равно сходит за матрицей сам.
+      })
+  }, [farm, buyers, orders])
 
   useEffect(() => {
     if (vehicles.length === 0) {
@@ -155,7 +196,7 @@ export default function Routes() {
       return
     }
 
-    const searchSeconds = Math.min(180, Math.max(5, Number(timeLimitSeconds) || 25))
+    const searchSeconds = clampSearchSeconds(Number(timeLimitSeconds))
     const result = await solverApi.plan({
       farm: {
         name: farm.name,
@@ -208,6 +249,7 @@ export default function Routes() {
         status: result.status || '',
         message: result.message || '',
         assumptions: result.assumptions || [],
+        search_seconds: result.search_seconds,
       })
     } catch (err: any) {
       setCalcError(err.message || 'Ошибка при расчёте маршрутов')
@@ -289,16 +331,37 @@ export default function Routes() {
               <input
                 className="input-field w-24 py-1"
                 type="number"
-                min="5"
-                max="180"
+                min={SEARCH_SECONDS_MIN}
+                max={SEARCH_SECONDS_MAX}
                 step="5"
                 value={timeLimitSeconds}
-                onChange={(e) => setTimeLimitSeconds(Number(e.target.value))}
+                onKeyDown={(e) => {
+                  if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                    e.preventDefault()
+                  }
+                }}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (raw === '') {
+                    setTimeLimitSeconds(SEARCH_SECONDS_MIN)
+                    return
+                  }
+                  const next = Number(raw)
+                  if (!Number.isFinite(next) || next < 0) {
+                    return
+                  }
+                  if (next > SEARCH_SECONDS_MAX) {
+                    setTimeLimitSeconds(SEARCH_SECONDS_MAX)
+                    return
+                  }
+                  setTimeLimitSeconds(Math.round(next))
+                }}
+                onBlur={() => setTimeLimitSeconds((current) => clampSearchSeconds(current))}
               />
             </label>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Поиск CP-SAT ограничен этим временем. Если точек больше, расчёт может идти дольше: после поиска ещё рисуются дороги (OSRM). По истечении лимита поиска алгоритм отдаёт лучший план, который успел найти (статус feasible), а не обязательно доказанный оптимум.
+            Поиск CP-SAT: от 5 до 600 секунд (10 минут). Если точек больше, расчёт может идти дольше: после поиска ещё рисуются дороги (OSRM). По истечении лимита поиска алгоритм отдаёт лучший план, который успел найти (статус feasible), а не обязательно доказанный оптимум.
           </p>
           {vehicles.length > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 mb-5">
@@ -440,6 +503,18 @@ export default function Routes() {
             </div>
           </div>
         </div>
+      )}
+
+      {summary && summary.search_seconds != null && (
+        <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">
+          {summary.status === 'optimal'
+            ? `Оптимум доказан за ${summary.search_seconds.toLocaleString()} с поиска CP-SAT.`
+            : summary.status === 'feasible'
+              ? `Лучший найденный план за ${summary.search_seconds.toLocaleString()} с. За отведённое время оптимум не доказан.`
+              : `Поиск CP-SAT занял ${summary.search_seconds.toLocaleString()} с.`}
+          {' '}
+          Дороги OSRM в это время не входят.
+        </p>
       )}
 
       {summary?.message && (

@@ -227,6 +227,14 @@ export interface SolverPlanResponse {
   trips: SolverTrip[]
   balances: SolverBalance[]
   assumptions?: string[]
+  search_seconds?: number
+}
+
+export const matrixApi = {
+  prefetch: (data: {
+    farm: { name: string; longitude: number; latitude: number }
+    buyers: { id: string; longitude: number; latitude: number }[]
+  }) => request<{ ok: boolean; points: number }>('/api/v1/matrix', { method: 'POST', body: JSON.stringify(data) }),
 }
 
 export const solverApi = {

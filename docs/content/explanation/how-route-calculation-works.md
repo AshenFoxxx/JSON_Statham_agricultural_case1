@@ -246,4 +246,6 @@ Solver возвращает план поставок:
 - учет времени работы покупателей;
 - учет загрузки на хозяйстве.
 
-<< [Почему Docker](/doc/explanation/why-docker) | [Архитектурные решения](/doc/explanation/architectural-decisions) >>
+Формальная модель переменных и ограничений — в разделе [Модель solver](/doc/explanation/solver).
+
+<< [Почему Docker](/doc/explanation/why-docker) | [Модель solver](/doc/explanation/solver) >>

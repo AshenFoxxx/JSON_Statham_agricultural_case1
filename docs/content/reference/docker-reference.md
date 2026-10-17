@@ -128,7 +128,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 | Путь | Куда проксируется | Порт бэкенда |
 |------|-------------------|-------------|
-| `/api/` | `http://backend:8000/api/` | 180s timeout |
+| `/api/` | `http://backend:8000/api/` | 720s timeout |
 | `/health` | `http://backend:8000/health` | — |
 | `/docs` | `http://backend:8000/docs` | Swagger UI |
 | `/openapi.json` | `http://backend:8000/openapi.json` | — |

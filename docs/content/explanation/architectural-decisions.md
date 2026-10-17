@@ -286,4 +286,4 @@
 
 Вердикт: OSRM для точных расчетов по реальным дорогам.
 
-<< [Как работает расчет маршрута](/doc/explanation/how-route-calculation-works) | [Первые шаги](/doc/tutorials/01-getting-started) >>
+<< [Модель solver](/doc/explanation/solver) | [Первые шаги](/doc/tutorials/01-getting-started) >>
