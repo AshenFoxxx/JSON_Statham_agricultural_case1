@@ -113,10 +113,10 @@ export const vehiclesApi = {
 
 const SOLVER_BASE = API_BASE
 
-async function solverRequest<T>(path: string, options?: RequestInit): Promise<T> {
+async function solverRequest<T>(path: string, options?: RequestInit, waitMs = 180_000): Promise<T> {
   const url = `${SOLVER_BASE}${path}`
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 180_000)
+  const timeout = setTimeout(() => controller.abort(), waitMs)
   try {
     const response = await fetch(url, {
       headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -177,6 +177,7 @@ export interface SolverPlanRequest {
   buyers: SolverBuyer[]
   vehicles: SolverVehicle[]
   unload_seconds_per_kg?: number
+  time_limit_seconds?: number
 }
 
 export interface SolverShipment {
@@ -229,6 +230,10 @@ export interface SolverPlanResponse {
 }
 
 export const solverApi = {
-  plan: (data: SolverPlanRequest) =>
-    solverRequest<SolverPlanResponse>('/api/v1/plan', { method: 'POST', body: JSON.stringify(data) }),
+  plan: (data: SolverPlanRequest, waitMs?: number) =>
+    solverRequest<SolverPlanResponse>(
+      '/api/v1/plan',
+      { method: 'POST', body: JSON.stringify(data) },
+      waitMs,
+    ),
 }

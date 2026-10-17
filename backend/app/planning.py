@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from app.routing import fetch_matrix, fetch_route
 from app.schemas import PlanRequest, PlanResponse, RoutePoint
 from app.solver_cp_sat import FARM, solve_plan
@@ -9,24 +11,33 @@ def build_plan(request: PlanRequest) -> PlanResponse:
     buyers = {buyer.id: buyer for buyer in request.buyers}
     points.extend((buyer.id, buyer.longitude, buyer.latitude) for buyer in request.buyers)
     graph = fetch_matrix(points)
-    plan = solve_plan(request, graph)
+    plan = solve_plan(request, graph, time_limit_seconds=request.time_limit_seconds)
     vehicles = {vehicle.id: vehicle for vehicle in request.vehicles}
 
-    trips = []
-    ready_hours: dict[str, float] = {}
-    unload_hours_per_kg = request.unload_seconds_per_kg / 3600.0
-    for trip in plan.trips:
+    def route_trip(trip):
         route_points = [(FARM, request.farm.longitude, request.farm.latitude)]
         for stop in trip.stops:
             buyer = buyers[stop.buyer_id]
             route_points.append((buyer.id, buyer.longitude, buyer.latitude))
         route_points.append((FARM, request.farm.longitude, request.farm.latitude))
         vehicle = vehicles[trip.vehicle_id]
-        routed = fetch_route(
+        return fetch_route(
             route_points,
             vehicle.fuel_consumption_l_per_100km,
             vehicle.fuel_price_rub_per_liter,
         )
+
+    if plan.trips:
+        workers = min(8, len(plan.trips))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            routed_list = list(pool.map(route_trip, plan.trips))
+    else:
+        routed_list = []
+
+    trips = []
+    ready_hours: dict[str, float] = {}
+    unload_hours_per_kg = request.unload_seconds_per_kg / 3600.0
+    for trip, routed in zip(plan.trips, routed_list):
         elapsed = ready_hours.get(trip.vehicle_id, 0.0)
         stops = []
         for stop, leg in zip(trip.stops, routed["legs"]):

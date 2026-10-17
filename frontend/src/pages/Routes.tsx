@@ -35,6 +35,7 @@ export default function Routes() {
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [shipmentsOpen, setShipmentsOpen] = useState(() => saved?.shipmentsOpen || false)
   const [unloadSecondsPerKg, setUnloadSecondsPerKg] = useState(() => saved?.unloadSecondsPerKg ?? 2)
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(() => saved?.timeLimitSeconds ?? 25)
   const [assumptionsOpen, setAssumptionsOpen] = useState(() => saved?.assumptionsOpen || false)
 
   const fetchData = async () => {
@@ -72,8 +73,9 @@ export default function Routes() {
       assumptionsOpen,
       selectedTripIndex: selectedTripIndex >= 0 ? selectedTripIndex : null,
       unloadSecondsPerKg,
+      timeLimitSeconds,
     })
-  }, [trips, shipments, balances, summary, shipmentsOpen, assumptionsOpen, selectedTrip, unloadSecondsPerKg])
+  }, [trips, shipments, balances, summary, shipmentsOpen, assumptionsOpen, selectedTrip, unloadSecondsPerKg, timeLimitSeconds])
 
   useEffect(() => {
     if (orders.length === 0) {
@@ -153,6 +155,7 @@ export default function Routes() {
       return
     }
 
+    const searchSeconds = Math.min(180, Math.max(5, Number(timeLimitSeconds) || 25))
     const result = await solverApi.plan({
       farm: {
         name: farm.name,
@@ -189,7 +192,8 @@ export default function Routes() {
         available: v.available,
       })),
       unload_seconds_per_kg: unloadSecondsPerKg,
-    })
+      time_limit_seconds: searchSeconds,
+    }, (searchSeconds + 90) * 1000)
 
       setTrips(result.trips || [])
       setShipments(result.shipments || [])
@@ -268,17 +272,34 @@ export default function Routes() {
             Поломка убирает машину из плана. Цена товара у покупателя меняет выручку и то, куда выгоднее везти.
             Разгрузка входит в срок культуры: секунды на каждый килограмм на остановке.
           </p>
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
-            <span className="whitespace-nowrap">Разгрузка, сек/кг</span>
-            <input
-              className="input-field w-24 py-1"
-              type="number"
-              min="0"
-              step="1"
-              value={unloadSecondsPerKg}
-              onChange={(e) => setUnloadSecondsPerKg(Number(e.target.value))}
-            />
-          </label>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 mb-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <span className="whitespace-nowrap">Разгрузка, сек/кг</span>
+              <input
+                className="input-field w-24 py-1"
+                type="number"
+                min="0"
+                step="1"
+                value={unloadSecondsPerKg}
+                onChange={(e) => setUnloadSecondsPerKg(Number(e.target.value))}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <span className="whitespace-nowrap">Поиск, сек</span>
+              <input
+                className="input-field w-24 py-1"
+                type="number"
+                min="5"
+                max="180"
+                step="5"
+                value={timeLimitSeconds}
+                onChange={(e) => setTimeLimitSeconds(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Поиск CP-SAT ограничен этим временем. Если точек больше, расчёт может идти дольше: после поиска ещё рисуются дороги (OSRM). По истечении лимита поиска алгоритм отдаёт лучший план, который успел найти (статус feasible), а не обязательно доказанный оптимум.
+          </p>
           {vehicles.length > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 mb-5">
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3">Поломка машины</p>

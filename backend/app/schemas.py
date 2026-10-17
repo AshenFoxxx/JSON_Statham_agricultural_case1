@@ -100,6 +100,12 @@ class PlanRequest(BaseModel):
         ge=0,
         description="Секунды разгрузки на килограмм. 0 — мгновенно. Погрузка на хозяйстве в срок не входит.",
     )
+    time_limit_seconds: float = Field(
+        default=25,
+        ge=5,
+        le=180,
+        description="Лимит поиска CP-SAT, секунды. По истечении — лучший найденный план (status feasible), не обязательно доказанный оптимум.",
+    )
 
     @model_validator(mode="after")
     def references_exist(self) -> "PlanRequest":

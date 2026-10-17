@@ -19,6 +19,7 @@ export type PlanSnapshot = {
   assumptionsOpen: boolean
   selectedTripIndex: number | null
   unloadSecondsPerKg: number
+  timeLimitSeconds?: number
 }
 
 const KEY = 'agro-plan-result-v1'
