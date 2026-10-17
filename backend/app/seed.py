@@ -43,7 +43,6 @@ def seed_db(db: Session):
     crud.create_vehicle(db, "vehicle-c", "Рефрижератор", 700, 15, 60, 1, 2, True)
 
     db.commit()
-    print("База данных заполнена начальными данными.")
 
 
 if __name__ == "__main__":

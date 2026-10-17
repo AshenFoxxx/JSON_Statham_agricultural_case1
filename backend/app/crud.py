@@ -2,8 +2,6 @@ from sqlalchemy.orm import Session
 from app.models import Farm, Product, Buyer, BuyerOrder, Vehicle
 
 
-# ── Farm ──────────────────────────────────────────────────────────
-
 def create_farm(db: Session, name: str, longitude: float, latitude: float) -> Farm:
     farm = Farm(id="farm", name=name, longitude=longitude, latitude=latitude)
     db.add(farm)
@@ -30,10 +28,15 @@ def update_farm(db: Session, name: str, longitude: float, latitude: float) -> Fa
     return farm
 
 
-# ── Product ───────────────────────────────────────────────────────
-
 def create_product(db: Session, id: str, name: str, stock_kg: float, max_delivery_hours: float) -> Product:
-    product = Product(id=id, name=name, stock_kg=stock_kg, max_delivery_hours=max_delivery_hours)
+    farm = db.query(Farm).first()
+    product = Product(
+        id=id,
+        name=name,
+        stock_kg=stock_kg,
+        max_delivery_hours=max_delivery_hours,
+        farm_id=farm.id if farm else None,
+    )
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -58,11 +61,10 @@ def update_product(db: Session, id: str, name: str, stock_kg: float, max_deliver
 def delete_product(db: Session, id: str):
     product = db.query(Product).filter(Product.id == id).first()
     if product:
+        db.query(BuyerOrder).filter(BuyerOrder.product_id == id).delete(synchronize_session=False)
         db.delete(product)
         db.commit()
 
-
-# ── Buyer ─────────────────────────────────────────────────────────
 
 def create_buyer(db: Session, id: str, name: str, longitude: float, latitude: float) -> Buyer:
     buyer = Buyer(id=id, name=name, longitude=longitude, latitude=latitude)
@@ -90,11 +92,10 @@ def update_buyer(db: Session, id: str, name: str, longitude: float, latitude: fl
 def delete_buyer(db: Session, id: str):
     buyer = db.query(Buyer).filter(Buyer.id == id).first()
     if buyer:
+        db.query(BuyerOrder).filter(BuyerOrder.buyer_id == id).delete(synchronize_session=False)
         db.delete(buyer)
         db.commit()
 
-
-# ── BuyerOrder ────────────────────────────────────────────────────
 
 def create_order(db: Session, product_id: str, buyer_id: str, demand_kg: float, price_per_kg: float) -> BuyerOrder:
     order = BuyerOrder(
@@ -136,8 +137,6 @@ def delete_order(db: Session, product_id: str, buyer_id: str):
         db.delete(order)
         db.commit()
 
-
-# ── Vehicle ───────────────────────────────────────────────────────
 
 def create_vehicle(db: Session, id: str, name: str, capacity_kg: float,
                    fuel_consumption_l_per_100km: float, fuel_price_rub_per_liter: float,

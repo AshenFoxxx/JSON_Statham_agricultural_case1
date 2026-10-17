@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import { buyersApi, ordersApi, productsApi, type Buyer, type BuyerOrder, type Product } from '../api/client'
+import { buyersApi, farmApi, ordersApi, productsApi, type Buyer, type BuyerOrder, type Farm, type Product } from '../api/client'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
+import PointPickMap from '../components/PointPickMap'
 
 export default function Buyers() {
   const [buyers, setBuyers] = useState<Buyer[]>([])
   const [orders, setOrders] = useState<BuyerOrder[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [farm, setFarm] = useState<Farm | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -18,14 +20,16 @@ export default function Buyers() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [buyersData, ordersData, productsData] = await Promise.all([
+      const [buyersData, ordersData, productsData, farmData] = await Promise.all([
         buyersApi.list(),
         ordersApi.list(),
         productsApi.list(),
+        farmApi.get().catch(() => null),
       ])
       setBuyers(buyersData)
       setOrders(ordersData)
       setProducts(productsData)
+      setFarm(farmData)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -41,6 +45,9 @@ export default function Buyers() {
     return orders.filter((o) => o.buyer_id === buyerId)
   }
 
+  const getProductName = (productId: string) =>
+    products.find((p) => p.id === productId)?.name || productId
+
   const columns = [
     { key: 'name', label: 'Покупатель' },
     { key: 'longitude', label: 'Долгота', render: (v: number) => v.toFixed(4) },
@@ -55,7 +62,7 @@ export default function Buyers() {
           <div className="space-y-1">
             {buyerOrders.map((o, i) => (
               <div key={i} className="text-xs">
-                <span className="font-medium">{o.product_id}</span>: {o.demand_kg} кг × {o.price_per_kg} ₽
+                <span className="font-medium">{getProductName(o.product_id)}</span>: {o.demand_kg} кг × {o.price_per_kg} ₽
               </div>
             ))}
           </div>
@@ -173,6 +180,7 @@ export default function Buyers() {
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingId ? 'Редактировать покупателя' : 'Новый покупатель'}
+        wide
       >
         <div className="space-y-4">
           <input
@@ -180,6 +188,16 @@ export default function Buyers() {
             placeholder="Название (например: Рынок Обнинск)"
             value={formData.name || ''}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+
+          <PointPickMap
+            longitude={formData.longitude}
+            latitude={formData.latitude}
+            defaultLongitude={farm?.longitude}
+            defaultLatitude={farm?.latitude}
+            onPick={(longitude, latitude) =>
+              setFormData((prev) => ({ ...prev, longitude, latitude }))
+            }
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -220,7 +238,7 @@ export default function Buyers() {
                 {getBuyerOrders(editingId).map((o) => (
                   <div key={o.product_id} className="flex items-center justify-between text-sm bg-gray-50 dark:bg-gray-700 p-2 rounded">
                     <div>
-                      <span className="font-medium">{o.product_id}</span>: {o.demand_kg} кг × {o.price_per_kg} ₽
+                      <span className="font-medium">{getProductName(o.product_id)}</span>: {o.demand_kg} кг × {o.price_per_kg} ₽
                     </div>
                     <button
                       className="text-red-500 hover:text-red-700 text-xs"

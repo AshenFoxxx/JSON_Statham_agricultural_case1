@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { farmApi, type Farm } from '../api/client'
 import LocationMap from '../components/LocationMap'
 import Modal from '../components/Modal'
+import PointPickMap from '../components/PointPickMap'
 
 export default function FarmPage() {
   const [farm, setFarm] = useState<Farm | null>(null)
@@ -113,6 +114,7 @@ export default function FarmPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={farm ? 'Редактировать хозяйство' : 'Новое хозяйство'}
+        wide
       >
         <div className="space-y-4">
           <input
@@ -121,22 +123,31 @@ export default function FarmPage() {
             value={formData.name || ''}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
-          <input
-            className="input-field"
-            placeholder="Долгота"
-            type="number"
-            step="0.000001"
-            value={formData.longitude ?? ''}
-            onChange={(e) => setFormData({ ...formData, longitude: Number(e.target.value) })}
+          <PointPickMap
+            longitude={formData.longitude}
+            latitude={formData.latitude}
+            onPick={(longitude, latitude) =>
+              setFormData((prev) => ({ ...prev, longitude, latitude }))
+            }
           />
-          <input
-            className="input-field"
-            placeholder="Широта"
-            type="number"
-            step="0.000001"
-            value={formData.latitude ?? ''}
-            onChange={(e) => setFormData({ ...formData, latitude: Number(e.target.value) })}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              className="input-field"
+              placeholder="Долгота"
+              type="number"
+              step="0.000001"
+              value={formData.longitude ?? ''}
+              onChange={(e) => setFormData({ ...formData, longitude: Number(e.target.value) })}
+            />
+            <input
+              className="input-field"
+              placeholder="Широта"
+              type="number"
+              step="0.000001"
+              value={formData.latitude ?? ''}
+              onChange={(e) => setFormData({ ...formData, latitude: Number(e.target.value) })}
+            />
+          </div>
           <div className="flex gap-2 justify-end pt-4">
             <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>Отмена</button>
             <button className="btn-primary" onClick={handleSave}>

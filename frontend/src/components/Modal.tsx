@@ -3,9 +3,10 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: React.ReactNode
+  wide?: boolean
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, wide }: ModalProps) {
   if (!isOpen) return null
 
   return (
@@ -18,7 +19,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         />
 
         {/* Modal */}
-        <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg transform transition-all">
+        <div className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full transform transition-all ${wide ? 'max-w-2xl' : 'max-w-lg'}`}>
           <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {title}

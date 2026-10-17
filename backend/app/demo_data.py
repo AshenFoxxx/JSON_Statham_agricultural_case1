@@ -140,7 +140,7 @@ def demo_request() -> PlanRequest:
 
 
 def demo_fleet_request() -> PlanRequest:
-    """Три машины и десять покупателей вокруг хозяйства. Для карты."""
+    """Три машины и десять покупателей вокруг хозяйства."""
     buyers = [
         ("buyer-obninsk", "Рынок Обнинск", 36.5855, 55.112),
         ("buyer-balabanovo", "Балабаново", 36.656, 55.177),
@@ -193,64 +193,5 @@ def demo_fleet_request() -> PlanRequest:
                 }
                 for letter in ("a", "b", "c")
             ],
-        }
-    )
-
-
-def demo_large_request() -> PlanRequest:
-    """20 машин и 50 покупателей для тестирования масштаба."""
-    import math
-    buyers = []
-    for i in range(1, 51):
-        angle = 2 * math.pi * i / 50
-        radius = 0.3 + (i % 5) * 0.15
-        lon = 36.6103 + radius * math.cos(angle)
-        lat = 55.0969 + radius * math.sin(angle)
-        buyers.append((
-            f"buyer-{i}",
-            f"Покупатель {i}",
-            round(lon, 4),
-            round(lat, 4),
-        ))
-    vehicles = []
-    for i in range(1, 21):
-        vehicles.append({
-            "id": f"vehicle-{i}",
-            "name": f"Машина {i}",
-            "capacity_kg": 300 + (i % 3) * 100,
-            "fuel_consumption_l_per_100km": 10 + (i % 3) * 2,
-            "fuel_price_rub_per_liter": 50 + (i % 5) * 2,
-            "max_trips": 1,
-            "max_stops": 3 + (i % 3),
-            "available": True,
-        })
-    return PlanRequest.model_validate(
-        {
-            "farm": {
-                "name": "Хозяйство Обнинск",
-                "longitude": 36.6103,
-                "latitude": 55.0969,
-            },
-            "products": [
-                {
-                    "id": "berry",
-                    "name": "Ягода",
-                    "stock_kg": 15000,
-                    "max_delivery_hours": 24,
-                }
-            ],
-            "buyers": [
-                {
-                    "id": bid,
-                    "name": name,
-                    "longitude": lon,
-                    "latitude": lat,
-                    "orders": [
-                        {"product_id": "berry", "demand_kg": 100, "price_per_kg": 10}
-                    ],
-                }
-                for bid, name, lon, lat in buyers
-            ],
-            "vehicles": vehicles,
         }
     )

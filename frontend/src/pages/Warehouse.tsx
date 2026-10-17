@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { productsApi, type Product } from '../api/client'
+import { farmApi, productsApi, type Farm, type Product } from '../api/client'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 
@@ -10,12 +10,17 @@ export default function Warehouse() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Product>>({})
+  const [farm, setFarm] = useState<Farm | null>(null)
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const products = await productsApi.list()
+      const [products, farmData] = await Promise.all([
+        productsApi.list(),
+        farmApi.get().catch(() => null),
+      ])
       setData(products)
+      setFarm(farmData)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -83,9 +88,11 @@ export default function Warehouse() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Склад — Продукция</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Обнинск, ул. Горького 2А
-          </p>
+          {farm && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {farm.name} · {farm.longitude.toFixed(4)}, {farm.latitude.toFixed(4)}
+            </p>
+          )}
         </div>
         <button className="btn-primary" onClick={() => { setEditingId(null); setFormData({}); setIsModalOpen(true); }}>
           + Добавить культуру
