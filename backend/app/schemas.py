@@ -95,6 +95,11 @@ class PlanRequest(BaseModel):
     products: list[Product] = Field(min_length=1)
     buyers: list[Buyer] = Field(min_length=1)
     vehicles: list[Vehicle] = Field(min_length=1)
+    unload_seconds_per_kg: float = Field(
+        default=0,
+        ge=0,
+        description="Секунды разгрузки на килограмм. 0 — мгновенно. Погрузка на хозяйстве в срок не входит.",
+    )
 
     @model_validator(mode="after")
     def references_exist(self) -> "PlanRequest":
@@ -143,7 +148,10 @@ class Shipment(BaseModel):
 
 class Stop(BaseModel):
     buyer_id: str
-    arrival_hours: float = Field(ge=0, description="Часы с момента выезда с хозяйства")
+    arrival_hours: float = Field(
+        ge=0,
+        description="Часы с выезда до конца разгрузки на этой остановке",
+    )
     load_kg: float = Field(ge=0, description="Сколько килограммов выгружается здесь")
 
 

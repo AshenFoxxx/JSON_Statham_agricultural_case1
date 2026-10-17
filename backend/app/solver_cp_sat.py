@@ -6,7 +6,7 @@ Model:
   z[v,t,j,pi] >= 0 - kg of product pi to buyer j
 
 Subtours: AddCircuit per outing, with self-loops for unused nodes.
-Arrival hours accumulate along chosen edges until the last buyer.
+Arrival is travel plus unload_seconds_per_kg times kg (including this stop).
 Return to farm is in fuel cost, not in shelf life.
 z is bounded by incoming edges, not only through y.
 """
@@ -96,7 +96,12 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
     if not feasible_edges:
         return _empty_response(request, arrivals)
 
-    arrival_cap = max((_hours_to_int(product.max_delivery_hours) for product in products), default=1)
+    unload_sec_per_kg = int(round(request.unload_seconds_per_kg))
+    max_capacity = max((int(v.capacity_kg) for v in vehicles), default=0)
+    arrival_cap = max(
+        (_hours_to_int(product.max_delivery_hours) for product in products),
+        default=1,
+    ) + unload_sec_per_kg * max_capacity
 
     model = cp_model.CpModel()
     solver = cp_model.CpSolver()
@@ -169,10 +174,18 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
                 hop = _hop(graph, fi, to_id)
                 hop_sec = _hours_to_int(hop[0])
                 dest_arr = arr[vi, ti, to_id]
+                load_here = [
+                    z[(vi, ti, to_id, pi)]
+                    for pi in range(len(products))
+                    if (vi, ti, to_id, pi) in z
+                ]
+                unload = unload_sec_per_kg * sum(load_here) if load_here else 0
                 if fi == FARM:
-                    model.Add(dest_arr == hop_sec).OnlyEnforceIf(ev)
+                    model.Add(dest_arr == hop_sec + unload).OnlyEnforceIf(ev)
                 else:
-                    model.Add(dest_arr == arr[vi, ti, fi] + hop_sec).OnlyEnforceIf(ev)
+                    model.Add(
+                        dest_arr == arr[vi, ti, fi] + hop_sec + unload
+                    ).OnlyEnforceIf(ev)
 
     for vi, v in enumerate(vehicles):
         for ti in range(v.max_trips):
@@ -337,6 +350,7 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
                 if var is None:
                     continue
                 load_kg += solver.Value(var)
+            elapsed += unload_sec_per_kg * load_kg / HOUR_SECONDS
             stops.append(
                 Stop(
                     buyer_id=buyer_id,

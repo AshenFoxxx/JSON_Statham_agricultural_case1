@@ -507,3 +507,68 @@ def test_plan_rejects_second_trip() -> None:
     payload["vehicles"][0]["max_trips"] = 2
     response = client.post("/api/v1/plan", json=payload)
     assert response.status_code == 422
+
+
+def test_unload_adds_to_arrival_hours(monkeypatch) -> None:
+    install_roads(monkeypatch, {("farm", "near"): (1.0, 10.0)})
+    payload = _payload()
+    payload["unload_seconds_per_kg"] = 36
+    payload["products"] = [
+        {"id": "berry", "name": "Ягода", "stock_kg": 100, "max_delivery_hours": 5}
+    ]
+    payload["buyers"] = [
+        {
+            "id": "near",
+            "name": "Ближний",
+            "longitude": 36.7,
+            "latitude": 55.2,
+            "orders": [{"product_id": "berry", "demand_kg": 100, "price_per_kg": 10}],
+        }
+    ]
+    payload["vehicles"][0]["max_stops"] = 1
+    response = client.post("/api/v1/plan", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["trips"][0]["stops"][0]["load_kg"] == 100
+    assert body["trips"][0]["stops"][0]["arrival_hours"] == 2.0
+
+
+def test_heavy_unload_blocks_second_stop(monkeypatch) -> None:
+    install_roads(
+        monkeypatch,
+        {
+            ("farm", "near"): (0.5, 1.0),
+            ("near", "next"): (0.5, 1.0),
+            ("farm", "next"): (0.5, 1.0),
+            ("next", "near"): (0.5, 1.0),
+        },
+    )
+    payload = _payload()
+    payload["unload_seconds_per_kg"] = 3600
+    payload["products"] = [
+        {"id": "berry", "name": "Ягода", "stock_kg": 2, "max_delivery_hours": 1.6}
+    ]
+    payload["buyers"] = [
+        {
+            "id": "near",
+            "name": "Ближний",
+            "longitude": 36.7,
+            "latitude": 55.2,
+            "orders": [{"product_id": "berry", "demand_kg": 1, "price_per_kg": 100}],
+        },
+        {
+            "id": "next",
+            "name": "Следующий",
+            "longitude": 36.8,
+            "latitude": 55.3,
+            "orders": [{"product_id": "berry", "demand_kg": 1, "price_per_kg": 100}],
+        },
+    ]
+    payload["vehicles"][0]["capacity_kg"] = 2
+    payload["vehicles"][0]["max_stops"] = 2
+    response = client.post("/api/v1/plan", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["trips"]) == 1
+    assert len(body["trips"][0]["stops"]) == 1
+    assert body["trips"][0]["load_kg"] == 1

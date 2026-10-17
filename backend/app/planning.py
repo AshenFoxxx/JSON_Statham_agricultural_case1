@@ -27,8 +27,9 @@ def build_plan(request: PlanRequest) -> PlanResponse:
         )
         elapsed = 0.0
         stops = []
+        unload_hours_per_kg = request.unload_seconds_per_kg / 3600.0
         for stop, leg in zip(trip.stops, routed["legs"]):
-            elapsed += leg["hours"]
+            elapsed += leg["hours"] + unload_hours_per_kg * stop.load_kg
             stops.append(stop.model_copy(update={"arrival_hours": round(elapsed, 2)}))
         trips.append(
             trip.model_copy(
