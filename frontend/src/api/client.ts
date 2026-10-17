@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`
@@ -119,7 +119,7 @@ async function solverRequest<T>(path: string, options?: RequestInit): Promise<T>
   const url = `${SOLVER_BASE}${path}`
   // Solver может считать до 120 секунд — ставим 130с
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 130_000)
+  const timeout = setTimeout(() => controller.abort(), 180_000)
   try {
     const response = await fetch(url, {
       headers: { 'Content-Type': 'application/json', ...options?.headers },

@@ -71,6 +71,12 @@ export default function Routes() {
       return
     }
 
+    // Пустой парк → 422
+    if (vehicles.length === 0) {
+      setCalcError('Добавьте хотя бы одно транспортное средство')
+      return
+    }
+
     const result = await solverApi.plan({
       farm: {
         name: farm.name,
@@ -260,22 +266,16 @@ export default function Routes() {
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Маршрут</h4>
                       <div className="flex flex-wrap gap-2">
-                        {/* Первая точка — ферма */}
-                        <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm">
-                          🌾 Хозяйство
-                        </span>
-                        {trip.waypoints.map((wp, wpIndex) => (
-                          <span
-                            key={wpIndex}
-                            className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm"
-                          >
-                            📍 {getBuyerName(wp.id)}
-                          </span>
-                        ))}
-                        {/* Последняя точка — ферма (возврат) */}
-                        <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm">
-                          🌾 Хозяйство
-                        </span>
+                        {trip.waypoints
+                          .filter((wp) => wp.id !== "farm")
+                          .map((wp, wpIndex) => (
+                            <span
+                              key={wpIndex}
+                              className="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 rounded-full text-sm"
+                            >
+                              📍 {getBuyerName(wp.id)}
+                            </span>
+                          ))}
                       </div>
                     </div>
 
