@@ -17,3 +17,5 @@ backend/dist/
 .DS_Store
 Thumbs.db
 repo_temp/
+agro.db
+backend/agro.db

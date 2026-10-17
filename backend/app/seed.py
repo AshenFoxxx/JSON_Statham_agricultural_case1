@@ -15,8 +15,8 @@ def seed_db(db: Session):
     crud.create_product(db, "cucumber", "Огурцы", 700, 18)
 
     # Покупатели
-    crud.create_buyer(db, "buyer-obninsk", "Рынок Обнинск", 36.5927, 54.5126)
-    crud.create_buyer(db, "buyer-kaluga", "Сеть Калуга", 36.2754, 54.5293)
+    crud.create_buyer(db, "buyer-obninsk", "Рынок Обнинск", 36.5855, 55.112)
+    crud.create_buyer(db, "buyer-kaluga", "Сеть Калуга", 36.2613, 54.5138)
     crud.create_buyer(db, "buyer-tula", "Опт Тула", 37.6182, 54.1931)
     crud.create_buyer(db, "buyer-moscow", "Рестораны Москва", 37.6173, 55.7558)
 

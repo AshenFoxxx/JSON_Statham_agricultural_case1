@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { farmApi, productsApi, buyersApi, vehiclesApi, ordersApi, solverApi, type Farm, type Product, type Buyer, type Vehicle, type BuyerOrder, type SolverTrip, type SolverShipment, type SolverBalance } from '../api/client'
+import RouteLineMap from '../components/RouteLineMap'
 
 // ── Внутренний тип баланса с fallback на старые имена ──────────────
 function getLeftover(b: SolverBalance): number {
@@ -280,14 +281,10 @@ export default function Routes() {
                     </div>
 
                     {trip.geometry && trip.geometry.coordinates && trip.geometry.coordinates.length > 0 && (
-                      <div className="h-64 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                        <div className="text-center">
-                          <span className="text-4xl">🗺️</span>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                            Карта маршрута ({trip.geometry.coordinates.length} точек)
-                          </p>
-                        </div>
-                      </div>
+                      <RouteLineMap
+                        coordinates={trip.geometry.coordinates}
+                        title={`Маршрут ${trip.vehicle_id}`}
+                      />
                     )}
                   </div>
                 )}

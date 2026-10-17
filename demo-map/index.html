@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>???????? ????????????????</title>
+    <title>План поставок</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.5.0/ol.css" />
     <script src="https://cdn.jsdelivr.net/npm/ol@10.5.0/dist/ol.js"></script>
     <style>
@@ -18,7 +18,7 @@
         }
         h2 { font-size: 16px; margin-bottom: 12px; }
         label { display: block; font-size: 12px; color: #94a3b8; margin: 10px 0 4px; }
-        input, button, select {
+        input, button {
             width: 100%; border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.2);
             background: #0f172a; color: #e2e8f0; padding: 8px 10px;
         }
@@ -33,21 +33,20 @@
         .trip-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
         .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .trip p { color: #94a3b8; font-size: 12px; margin-top: 6px; }
-        select { appearance: auto; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div class="info-panel">
-        <h2 id="scenario-title">????????: 3 ????????????, 10 ??????????????????????</h2>
-        <label for="api">?????????? ??????????????</label>
+        <h2>План по данным склада</h2>
+        <label for="api">Адрес бэкенда</label>
         <input id="api" value="http://127.0.0.1:8000">
-        <button id="build" type="button">???????????????????? ?? ????????????????</button>
+        <button id="build" type="button">Рассчитать и показать</button>
         <p id="error" class="error"></p>
-        <div class="info-item"><span class="info-label">????????????</span><span class="info-value" id="status">???</span></div>
-        <div class="info-item"><span class="info-label">??????????????</span><span class="info-value" id="revenue">???</span></div>
-        <div class="info-item"><span class="info-label">??????????????</span><span class="info-value" id="cost">???</span></div>
-        <div class="info-item"><span class="info-label">??????????????</span><span class="info-value" id="profit">???</span></div>
+        <div class="info-item"><span class="info-label">Статус</span><span class="info-value" id="status">—</span></div>
+        <div class="info-item"><span class="info-label">Выручка</span><span class="info-value" id="revenue">—</span></div>
+        <div class="info-item"><span class="info-label">Топливо</span><span class="info-value" id="cost">—</span></div>
+        <div class="info-item"><span class="info-label">Прибыль</span><span class="info-value" id="profit">—</span></div>
         <div id="trips"></div>
     </div>
     <script>
@@ -62,7 +61,7 @@
                 new ol.layer.Tile({
                     source: new ol.source.XYZ({
                         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-                        attributions: 'Tiles ?? Esri'
+                        attributions: 'Tiles © Esri'
                     })
                 }),
                 new ol.layer.Vector({
@@ -100,7 +99,84 @@
         });
 
         function money(value) {
-            return Math.round(value) + ' ??????';
+            return Math.round(value) + ' руб';
+        }
+
+        async function loadJson(api, path) {
+            const response = await fetch(api + path);
+            const data = await response.json().catch(function () { return {}; });
+            if (!response.ok) {
+                const detail = data.detail;
+                throw new Error(typeof detail === 'string' ? detail : ('Нет данных ' + path));
+            }
+            return data;
+        }
+
+        async function requestFromDatabase(api) {
+            const farm = await loadJson(api, '/api/v1/farm');
+            const products = await loadJson(api, '/api/v1/products');
+            const buyers = await loadJson(api, '/api/v1/buyers');
+            const orders = await loadJson(api, '/api/v1/orders');
+            const vehicles = await loadJson(api, '/api/v1/vehicles');
+            const buyersWithOrders = buyers.filter(function (buyer) {
+                return orders.some(function (order) { return order.buyer_id === buyer.id; });
+            });
+            if (!farm) {
+                throw new Error('Сначала добавьте хозяйство');
+            }
+            if (products.length === 0) {
+                throw new Error('Добавьте хотя бы одну культуру');
+            }
+            if (buyersWithOrders.length === 0) {
+                throw new Error('Добавьте покупателя с заказом');
+            }
+            if (vehicles.length === 0) {
+                throw new Error('Добавьте хотя бы одну машину');
+            }
+            return {
+                farm: {
+                    name: farm.name,
+                    longitude: farm.longitude,
+                    latitude: farm.latitude
+                },
+                products: products.map(function (product) {
+                    return {
+                        id: product.id,
+                        name: product.name,
+                        stock_kg: product.stock_kg,
+                        max_delivery_hours: product.max_delivery_hours
+                    };
+                }),
+                buyers: buyersWithOrders.map(function (buyer) {
+                    return {
+                        id: buyer.id,
+                        name: buyer.name,
+                        longitude: buyer.longitude,
+                        latitude: buyer.latitude,
+                        orders: orders.filter(function (order) {
+                            return order.buyer_id === buyer.id;
+                        }).map(function (order) {
+                            return {
+                                product_id: order.product_id,
+                                demand_kg: order.demand_kg,
+                                price_per_kg: order.price_per_kg
+                            };
+                        })
+                    };
+                }),
+                vehicles: vehicles.map(function (vehicle) {
+                    return {
+                        id: vehicle.id,
+                        name: vehicle.name,
+                        capacity_kg: vehicle.capacity_kg,
+                        fuel_consumption_l_per_100km: vehicle.fuel_consumption_l_per_100km,
+                        fuel_price_rub_per_liter: vehicle.fuel_price_rub_per_liter,
+                        max_trips: 1,
+                        max_stops: vehicle.max_stops,
+                        available: vehicle.available
+                    };
+                })
+            };
         }
 
         document.getElementById('build').addEventListener('click', async () => {
@@ -110,11 +186,7 @@
             button.disabled = true;
             const api = document.getElementById('api').value.replace(/\/$/, '');
             try {
-                const demo = await fetch(api + '/api/v1/demo/fleet');
-                const request = await demo.json();
-                if (!demo.ok) {
-                    throw new Error(request.detail || '???? ?????????????? ?????????? ????????????????');
-                }
+                const request = await requestFromDatabase(api);
                 const t0 = performance.now();
                 const response = await fetch(api + '/api/v1/plan', {
                     method: 'POST',
@@ -125,23 +197,23 @@
                 const data = await response.json();
                 if (!response.ok) {
                     const detail = data.detail;
-                    throw new Error(typeof detail === 'string' ? detail : '???????????? ???? ???????????????? ????????');
+                    throw new Error(typeof detail === 'string' ? detail : 'Бэкенд не посчитал план');
                 }
                 const names = { farm: request.farm.name };
-                request.buyers.forEach((buyer) => { names[buyer.id] = buyer.name; });
+                request.buyers.forEach(function (buyer) { names[buyer.id] = buyer.name; });
                 const vehicleColor = {};
-                data.trips.forEach((trip, index) => {
+                data.trips.forEach(function (trip, index) {
                     vehicleColor[trip.vehicle_id] = COLORS[index % COLORS.length];
                 });
                 const served = {};
-                data.trips.forEach((trip) => {
-                    trip.stops.forEach((stop) => { served[stop.buyer_id] = trip.vehicle_id; });
+                data.trips.forEach(function (trip) {
+                    trip.stops.forEach(function (stop) { served[stop.buyer_id] = trip.vehicle_id; });
                 });
 
                 routeSource.clear();
                 popup.setPosition(undefined);
                 const format = new ol.format.GeoJSON();
-                data.trips.forEach((trip) => {
+                data.trips.forEach(function (trip) {
                     const color = vehicleColor[trip.vehicle_id];
                     const line = format.readGeometry(trip.geometry, {
                         dataProjection: 'EPSG:4326',
@@ -155,7 +227,7 @@
                     name: request.farm.name,
                     color: '#22c55e'
                 }));
-                request.buyers.forEach((buyer) => {
+                request.buyers.forEach(function (buyer) {
                     const vehicleId = served[buyer.id];
                     routeSource.addFeature(new ol.Feature({
                         geometry: new ol.geom.Point(ol.proj.fromLonLat([buyer.longitude, buyer.latitude])),
@@ -166,18 +238,22 @@
                 });
                 map.getView().fit(routeSource.getExtent(), { padding: [80, 80, 80, 80], maxZoom: 11 });
 
-                document.getElementById('status').textContent = data.status + ' (' + elapsed + ' ??)';
+                document.getElementById('status').textContent = data.status + ' (' + elapsed + ' с)';
                 document.getElementById('revenue').textContent = money(data.revenue);
                 document.getElementById('cost').textContent = money(data.transport_cost);
                 document.getElementById('profit').textContent = money(data.profit);
-                const vehicles = Object.fromEntries(request.vehicles.map((item) => [item.id, item.name]));
-                document.getElementById('trips').innerHTML = data.trips.map((trip) => {
+                const vehicles = Object.fromEntries(request.vehicles.map(function (item) {
+                    return [item.id, item.name];
+                }));
+                document.getElementById('trips').innerHTML = data.trips.map(function (trip) {
                     const color = vehicleColor[trip.vehicle_id];
-                    const stops = trip.stops.map((stop) => names[stop.buyer_id] || stop.buyer_id).join(' ??? ');
+                    const stops = trip.stops.map(function (stop) {
+                        return names[stop.buyer_id] || stop.buyer_id;
+                    }).join(' → ');
                     return '<div class="trip"><div class="trip-head"><span class="dot" style="background:' + color +
                         '"></span>' + (vehicles[trip.vehicle_id] || trip.vehicle_id) +
-                        '</div><p>' + (request.farm.name) + ' ??? ' + stops + ' ??? ' + request.farm.name +
-                        '</p><p>' + trip.distance_km + ' ???? ?? ' + trip.load_kg + ' ???? ?? ' + money(trip.cost) + '</p></div>';
+                        '</div><p>' + request.farm.name + ' → ' + stops + ' → ' + request.farm.name +
+                        '</p><p>' + trip.distance_km + ' км · ' + trip.load_kg + ' кг · ' + money(trip.cost) + '</p></div>';
                 }).join('');
             } catch (err) {
                 error.textContent = err.message;

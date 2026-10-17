@@ -1,19 +1,42 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.demo_data import demo_fleet_request, demo_large_request, demo_request
+from app.db_routes import router as db_router
 from app.planning import build_plan
 from app.routing import RouteError, fetch_route
 from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
 
+
+def init_db() -> None:
+    from app import crud, models, seed
+    from app.database import Base, SessionLocal, engine
+
+    _ = models
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if crud.get_farm(db) is None:
+            seed.seed_db(db)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Спаси урожай",
     version="0.1.0",
-    description="Считает план поставок и маршрут по дорогам. Карта живёт в папке demo-map.",
+    description="План поставок, склад в SQLite и карта в demo-map.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -22,6 +45,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(db_router)
+init_db()
 
 
 @app.get("/health")

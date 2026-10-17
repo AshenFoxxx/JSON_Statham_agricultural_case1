@@ -1,4 +1,6 @@
-from sqlalchemy import Column, String, Float, Integer, Boolean, ForeignKey, Table
+import uuid
+
+from sqlalchemy import Column, String, Float, Integer, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -41,7 +43,7 @@ class Buyer(Base):
 class BuyerOrder(Base):
     __tablename__ = "buyer_orders"
 
-    id = Column(String, primary_key=True, default=lambda: f"order-{id}")
+    id = Column(String, primary_key=True, default=lambda: f"order-{uuid.uuid4().hex[:8]}")
     product_id = Column(String, ForeignKey("products.id"), nullable=False)
     buyer_id = Column(String, ForeignKey("buyers.id"), nullable=False)
     demand_kg = Column(Float, nullable=False)
