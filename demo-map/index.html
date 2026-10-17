@@ -60,8 +60,9 @@
             layers: [
                 new ol.layer.Tile({
                     source: new ol.source.XYZ({
-                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-                        attributions: 'Tiles © Esri'
+                        url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+                        attributions: '© OpenStreetMap contributors',
+                        maxZoom: 19
                     })
                 }),
                 new ol.layer.Vector({

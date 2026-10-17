@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.demo_data import demo_fleet_request, demo_large_request, demo_request
+from app.demo_data import demo_fleet_request, demo_request
 from app.db_routes import router as db_router
 from app.planning import build_plan
 from app.routing import RouteError, fetch_route
@@ -14,14 +14,19 @@ from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
 
 def init_db() -> None:
     from app import crud, models, seed
-    from app.database import Base, SessionLocal, engine
+    from app.database import SessionLocal, engine
 
-    _ = models
-    Base.metadata.create_all(bind=engine)
+    models.Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         if crud.get_farm(db) is None:
             seed.seed_db(db)
+        farm = crud.get_farm(db)
+        if farm:
+            for product in crud.get_products(db):
+                if not product.farm_id:
+                    product.farm_id = farm.id
+            db.commit()
     finally:
         db.close()
 
@@ -33,9 +38,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="Спаси урожай",
+    title="АгроЛогистика",
     version="0.1.0",
-    description="План поставок, склад в SQLite и карта в demo-map.",
+    description="План поставок, склад в SQLite и карта маршрутов.",
     lifespan=lifespan,
 )
 
@@ -46,7 +51,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(db_router)
-init_db()
 
 
 @app.get("/health")
@@ -62,11 +66,6 @@ def demo() -> PlanRequest:
 @app.get("/api/v1/demo/fleet", response_model=PlanRequest)
 def demo_fleet() -> PlanRequest:
     return demo_fleet_request()
-
-
-@app.get("/api/v1/demo/large", response_model=PlanRequest)
-def demo_large() -> PlanRequest:
-    return demo_large_request()
 
 
 @app.post("/api/v1/plan", response_model=PlanResponse)

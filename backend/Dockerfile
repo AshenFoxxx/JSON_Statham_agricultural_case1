@@ -1,11 +1,15 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+RUN mkdir -p /data
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ .
+COPY demo-map /demo-map
+
+ENV DATABASE_URL=sqlite:////data/agro.db
 
 EXPOSE 8000
 

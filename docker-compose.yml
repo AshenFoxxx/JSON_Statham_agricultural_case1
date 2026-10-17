@@ -1,32 +1,28 @@
-version: '3.8'
-
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: agro_logistics
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
-      - "8001:8000"
+      - "8000:8000"
+    volumes:
+      - agro-data:/data
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/agro_logistics
-    depends_on:
-      - db
+      DATABASE_URL: sqlite:////data/agro.db
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+        VITE_SOLVER_URL: ""
     ports:
-      - "80:80"
+      - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  agro-data:
