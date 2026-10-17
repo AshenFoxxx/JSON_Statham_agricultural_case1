@@ -75,12 +75,22 @@ export default function Layout() {
             <p>
               © {new Date().getFullYear()} АгроЛогистика. Все права защищены. ООО "Команда JSON Statham".
             </p>
-            <a
-              href="/privacy"
-              className="text-primary-600 dark:text-primary-400 hover:underline"
-            >
-              Политика конфиденциальности
-            </a>
+            <div className="flex items-center gap-4">
+              <a
+                href="/privacy"
+                className="text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                Политика конфиденциальности
+              </a>
+              <a
+                href="http://127.0.0.1:5001/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                Документация
+              </a>
+            </div>
           </div>
         </div>
       </footer>
