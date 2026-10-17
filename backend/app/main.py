@@ -13,7 +13,7 @@ from app.schemas import PlanRequest, PlanResponse, RouteRequest, RouteResponse
 app = FastAPI(
     title="Спаси урожай",
     version="0.1.0",
-    description="Считает план поставок и маршрут по дорогам. Карта живёт в папке frontend.",
+    description="Считает план поставок и маршрут по дорогам. Карта живёт в папке demo-map.",
 )
 
 app.add_middleware(
@@ -65,6 +65,6 @@ def route(body: RouteRequest) -> RouteResponse:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-_frontend = Path(__file__).resolve().parents[2] / "frontend"
-if _frontend.is_dir():
-    app.mount("/map", StaticFiles(directory=_frontend, html=True), name="map")
+_demo_map = Path(__file__).resolve().parents[2] / "demo-map"
+if _demo_map.is_dir():
+    app.mount("/map", StaticFiles(directory=_demo_map, html=True), name="map")
