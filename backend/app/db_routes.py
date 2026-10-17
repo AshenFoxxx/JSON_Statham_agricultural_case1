@@ -74,7 +74,7 @@ class VehicleCreate(BaseModel):
     capacity_kg: float = Field(gt=0)
     fuel_consumption_l_per_100km: float = Field(gt=0)
     fuel_price_rub_per_liter: float = Field(ge=0)
-    max_trips: int = Field(default=1, ge=1, le=1)
+    max_trips: int = Field(default=1, ge=1, le=3)
     max_stops: int = Field(ge=1, le=5)
     available: bool = True
 

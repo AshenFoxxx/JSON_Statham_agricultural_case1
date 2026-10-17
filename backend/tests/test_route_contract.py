@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 
-from app.routing import process_route, process_table
+from app.routing import clear_matrix_cache, fetch_matrix, process_route, process_table
 from app.solver_cp_sat import _status_from_cpsat
 from app.schemas import SolverStatus
 
@@ -38,6 +38,37 @@ def test_osrm_table_becomes_hours_and_kilometers() -> None:
     )
     assert graph[("farm", "kaluga")] == (1.0, 10.0)
     assert ("kaluga", "farm") not in graph
+
+
+def test_matrix_cache_skips_osrm_when_coordinates_unchanged(monkeypatch) -> None:
+    clear_matrix_cache()
+    calls: list[str] = []
+
+    class _Response:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "code": "Ok",
+                "durations": [[0, 3600], [3600, 0]],
+                "distances": [[0, 10000], [10000, 0]],
+            }
+
+    def fake_get(url: str, timeout: int = 30):
+        calls.append(url)
+        return _Response()
+
+    monkeypatch.setattr("requests.get", fake_get)
+    points = [("farm", 36.6103, 55.0969), ("near", 36.7, 55.2)]
+    first = fetch_matrix(points)
+    second = fetch_matrix(list(reversed(points)))
+    assert first[("farm", "near")] == (1.0, 10.0)
+    assert second[("farm", "near")] == first[("farm", "near")]
+    assert len(calls) == 1
+
+    fetch_matrix([("farm", 36.6103, 55.0969), ("near", 36.8, 55.2)])
+    assert len(calls) == 2
 
 
 def test_cpsat_feasible_is_not_called_optimal() -> None:

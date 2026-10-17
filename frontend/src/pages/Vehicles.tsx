@@ -32,6 +32,7 @@ export default function Vehicles() {
     { key: 'capacity_kg', label: 'Грузоподъёмность (кг)', render: (v: number) => `${v.toLocaleString()} кг` },
     { key: 'fuel_consumption_l_per_100km', label: 'Расход топлива (л/100км)', render: (v: number) => `${v} л` },
     { key: 'max_stops', label: 'Макс. остановок', render: (v: number) => `${v}` },
+    { key: 'max_trips', label: 'Макс. рейсов', render: (v: number) => `${v}` },
     {
       key: 'available',
       label: 'Статус',
@@ -73,7 +74,8 @@ export default function Vehicles() {
         const newVehicle: Vehicle = {
           ...(formData as Vehicle),
           id: `vehicle-${Date.now()}`,
-          available: true,
+          max_trips: formData.max_trips || 2,
+          available: formData.available ?? true,
         }
         const created = await vehiclesApi.create(newVehicle)
         setData([...data, created])
@@ -166,6 +168,15 @@ export default function Vehicles() {
               max="5"
               value={formData.max_stops ?? ''}
               onChange={(e) => setFormData({ ...formData, max_stops: Number(e.target.value) })}
+            />
+            <input
+              className="input-field"
+              placeholder="Макс. рейсов"
+              type="number"
+              min="1"
+              max="3"
+              value={formData.max_trips ?? ''}
+              onChange={(e) => setFormData({ ...formData, max_trips: Number(e.target.value) })}
             />
           </div>
           <label className="flex items-center gap-2">

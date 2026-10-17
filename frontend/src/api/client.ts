@@ -106,7 +106,7 @@ export const vehiclesApi = {
   create: (data: Vehicle) =>
     request<Vehicle>('/api/v1/vehicles', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Vehicle) =>
-    request<Vehicle>(`/api/v1/vehicles/${id}`, { method: 'PUT', body: JSON.stringify({ ...data, id, max_trips: 1 }) }),
+    request<Vehicle>(`/api/v1/vehicles/${id}`, { method: 'PUT', body: JSON.stringify({ ...data, id }) }),
   delete: (id: string) =>
     request<void>(`/api/v1/vehicles/${id}`, { method: 'DELETE' }),
 }

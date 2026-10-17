@@ -9,7 +9,7 @@ class Product(BaseModel):
     stock_kg: float = Field(gt=0, description="Запас на хозяйстве, кг")
     max_delivery_hours: float = Field(
         gt=0,
-        description="Предельное время в пути. Срок на складе не учитывается.",
+        description="Срок с начала смены до конца разгрузки у покупателя, ч.",
     )
 
 
@@ -49,8 +49,8 @@ class Vehicle(BaseModel):
     max_trips: int = Field(
         default=1,
         ge=1,
-        le=1,
-        description="Один выезд со склада. Второй круг не планируется.",
+        le=3,
+        description="Сколько выездов машина может сделать за план. Следующий стартует после возврата.",
     )
     max_stops: int = Field(
         default=1,
@@ -150,7 +150,7 @@ class Stop(BaseModel):
     buyer_id: str
     arrival_hours: float = Field(
         ge=0,
-        description="Часы с выезда до конца разгрузки на этой остановке",
+        description="Часы с начала смены до конца разгрузки на этой остановке",
     )
     load_kg: float = Field(ge=0, description="Сколько килограммов выгружается здесь")
 
@@ -177,7 +177,7 @@ class ProductBalance(BaseModel):
     shipped_kg: float
     leftover_kg: float = Field(description="Запас минус отгружено")
     loss_kg: float = Field(
-        description="Часть остатка, которую нельзя доставить ни одному покупателю в срок"
+        description="Равно leftover_kg: невывезенное в этом плане считается порчей"
     )
 
 

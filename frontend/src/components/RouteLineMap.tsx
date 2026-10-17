@@ -16,6 +16,7 @@ type RouteBuyer = {
   name: string
   longitude: number
   latitude: number
+  color?: string
 }
 
 type RouteLineMapProps = {
@@ -77,7 +78,7 @@ export default function RouteLineMap({ coordinates, title, color = '#0284c7', bu
         new Style({
           image: new Circle({
             radius: 7,
-            fill: new Fill({ color: '#f59e0b' }),
+            fill: new Fill({ color: buyer.color || color }),
             stroke: new Stroke({ color: '#ffffff', width: 2 }),
           }),
           text: new Text({

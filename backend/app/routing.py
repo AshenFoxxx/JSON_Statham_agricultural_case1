@@ -1,7 +1,14 @@
 """Расчёт маршрута через OSRM. Координаты: longitude, latitude."""
 
+from collections import OrderedDict
+from threading import Lock
+
 OSRM_API_URL = "http://router.project-osrm.org/route/v1/driving"
 OSRM_TABLE_URL = "http://router.project-osrm.org/table/v1/driving"
+
+_MATRIX_CACHE_LIMIT = 16
+_matrix_cache: OrderedDict[tuple, dict[tuple[str, str], tuple[float, float]]] = OrderedDict()
+_matrix_lock = Lock()
 
 
 class RouteError(Exception):
@@ -13,10 +20,29 @@ def fuel_cost_rub(distance_km: float, consumption_l_per_100km: float, price_rub_
     return (distance_km / 100.0) * consumption_l_per_100km * price_rub_per_liter
 
 
+def _matrix_key(points: list[tuple[str, float, float]]) -> tuple:
+    return tuple(sorted((point_id, round(lon, 6), round(lat, 6)) for point_id, lon, lat in points))
+
+
+def clear_matrix_cache() -> None:
+    with _matrix_lock:
+        _matrix_cache.clear()
+
+
 def fetch_matrix(points: list[tuple[str, float, float]]) -> dict[tuple[str, str], tuple[float, float]]:
-    """Часы и километры между всеми точками. Ключ — (from_id, to_id)."""
+    """Часы и километры между всеми точками. Ключ — (from_id, to_id).
+
+    Повторный запрос с теми же id и координатами берётся из памяти, без OSRM.
+    """
     if len(points) < 2:
         raise RouteError("Нужны минимум две точки")
+
+    key = _matrix_key(points)
+    with _matrix_lock:
+        cached = _matrix_cache.get(key)
+        if cached is not None:
+            _matrix_cache.move_to_end(key)
+            return dict(cached)
 
     import requests
 
@@ -31,7 +57,13 @@ def fetch_matrix(points: list[tuple[str, float, float]]) -> dict[tuple[str, str]
 
     if data.get("code") != "Ok":
         raise RouteError("OSRM не посчитал расстояния")
-    return process_table(data, points)
+    graph = process_table(data, points)
+    with _matrix_lock:
+        _matrix_cache[key] = graph
+        _matrix_cache.move_to_end(key)
+        while len(_matrix_cache) > _MATRIX_CACHE_LIMIT:
+            _matrix_cache.popitem(last=False)
+    return dict(graph)
 
 
 def process_table(

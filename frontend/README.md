@@ -54,4 +54,4 @@ frontend/src/
 | Заказ | `product_id`, `buyer_id`, `demand_kg`, `price_per_kg` |
 | Машина | `id`, `name`, `capacity_kg`, `fuel_consumption_l_per_100km`, `fuel_price_rub_per_liter`, `max_stops`, `available` |
 
-`max_trips` на стороне API всегда равен 1.
+`max_trips` — сколько выездов машина может сделать за план (1–3). Следующий выезд после возврата.

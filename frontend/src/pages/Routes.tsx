@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { farmApi, productsApi, buyersApi, vehiclesApi, ordersApi, solverApi, type Farm, type Product, type Buyer, type Vehicle, type BuyerOrder, type SolverTrip, type SolverShipment, type SolverBalance } from '../api/client'
 import RouteLineMap from '../components/RouteLineMap'
 import AllRoutesMap, { tripColor } from '../components/AllRoutesMap'
+import { loadPlanSnapshot, savePlanSnapshot } from '../planResultStorage'
 
 export default function Routes() {
-  const [trips, setTrips] = useState<SolverTrip[]>([])
-  const [shipments, setShipments] = useState<SolverShipment[]>([])
-  const [balances, setBalances] = useState<SolverBalance[]>([])
+  const [saved] = useState(() => loadPlanSnapshot())
+  const [trips, setTrips] = useState<SolverTrip[]>(() => saved?.trips || [])
+  const [shipments, setShipments] = useState<SolverShipment[]>(() => saved?.shipments || [])
+  const [balances, setBalances] = useState<SolverBalance[]>(() => saved?.balances || [])
   const [summary, setSummary] = useState<{
     revenue: number
     transport_cost: number
@@ -14,7 +16,7 @@ export default function Routes() {
     status: string
     message: string
     assumptions: string[]
-  } | null>(null)
+  } | null>(() => saved?.summary || null)
   const [products, setProducts] = useState<Product[]>([])
   const [buyers, setBuyers] = useState<Buyer[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -22,12 +24,18 @@ export default function Routes() {
   const [farm, setFarm] = useState<Farm | null>(null)
   const [isCalculating, setIsCalculating] = useState(false)
   const [calcError, setCalcError] = useState<string | null>(null)
-  const [selectedTrip, setSelectedTrip] = useState<SolverTrip | null>(null)
+  const [selectedTrip, setSelectedTrip] = useState<SolverTrip | null>(() => {
+    const index = saved?.selectedTripIndex
+    if (index == null || !saved?.trips[index]) {
+      return null
+    }
+    return saved.trips[index]
+  })
   const [selectedOrderId, setSelectedOrderId] = useState('')
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
-  const [shipmentsOpen, setShipmentsOpen] = useState(false)
-  const [unloadSecondsPerKg, setUnloadSecondsPerKg] = useState(2)
-  const [assumptionsOpen, setAssumptionsOpen] = useState(false)
+  const [shipmentsOpen, setShipmentsOpen] = useState(() => saved?.shipmentsOpen || false)
+  const [unloadSecondsPerKg, setUnloadSecondsPerKg] = useState(() => saved?.unloadSecondsPerKg ?? 2)
+  const [assumptionsOpen, setAssumptionsOpen] = useState(() => saved?.assumptionsOpen || false)
 
   const fetchData = async () => {
     try {
@@ -51,6 +59,21 @@ export default function Routes() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  useEffect(() => {
+    const selectedTripIndex = selectedTrip ? trips.indexOf(selectedTrip) : -1
+    savePlanSnapshot({
+      version: 1,
+      trips,
+      shipments,
+      balances,
+      summary,
+      shipmentsOpen,
+      assumptionsOpen,
+      selectedTripIndex: selectedTripIndex >= 0 ? selectedTripIndex : null,
+      unloadSecondsPerKg,
+    })
+  }, [trips, shipments, balances, summary, shipmentsOpen, assumptionsOpen, selectedTrip, unloadSecondsPerKg])
 
   useEffect(() => {
     if (orders.length === 0) {
@@ -161,7 +184,7 @@ export default function Routes() {
         capacity_kg: v.capacity_kg,
         fuel_consumption_l_per_100km: v.fuel_consumption_l_per_100km,
         fuel_price_rub_per_liter: v.fuel_price_rub_per_liter,
-        max_trips: 1,
+        max_trips: v.max_trips || 1,
         max_stops: v.max_stops,
         available: v.available,
       })),
@@ -195,6 +218,20 @@ export default function Routes() {
       color: tripColor(index),
     }))
     .filter((route) => route.coordinates.length > 1)
+
+  const buyerLineColor: Record<string, string> = {}
+  trips.forEach((trip, index) => {
+    const color = tripColor(index)
+    trip.stops.forEach((stop) => {
+      buyerLineColor[stop.buyer_id] = color
+    })
+  })
+  const mapBuyers = buyers.map((buyer) => ({
+    name: buyer.name,
+    longitude: buyer.longitude,
+    latitude: buyer.latitude,
+    color: buyerLineColor[buyer.id] || '#64748b',
+  }))
 
   return (
     <div>
@@ -420,7 +457,7 @@ export default function Routes() {
       {overviewRoutes.length > 0 && (
         <div className="mb-8">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Все маршруты</h3>
-          <AllRoutesMap routes={overviewRoutes} farm={farm} buyers={buyers} />
+          <AllRoutesMap routes={overviewRoutes} farm={farm} buyers={mapBuyers} />
           <div className="mt-3 flex flex-wrap gap-3">
             {trips.map((trip, index) => (
               <span key={`${trip.vehicle_id}-${index}`} className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -436,8 +473,8 @@ export default function Routes() {
             )}
             {buyers.length > 0 && (
               <span className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <span className="inline-block w-3 h-3 rounded-full bg-amber-500" />
-                Покупатели
+                <span className="inline-block w-3 h-3 rounded-full bg-slate-500" />
+                Не в плане
               </span>
             )}
           </div>
@@ -501,20 +538,17 @@ export default function Routes() {
                         coordinates={trip.geometry.coordinates}
                         title={`Маршрут ${trip.vehicle_id}`}
                         color={tripColor(index)}
-                        buyers={trip.waypoints
-                          .filter((wp) => wp.id !== 'farm')
-                          .map((wp) => {
-                            const buyer = buyers.find((item) => item.id === wp.id)
+                        buyers={buyers
+                          .map((buyer) => {
+                            const onThisTrip = trip.stops.some((stop) => stop.buyer_id === buyer.id)
                             return {
-                              name: buyer?.name || getBuyerName(wp.id),
-                              longitude: wp.longitude ?? buyer?.longitude,
-                              latitude: wp.latitude ?? buyer?.latitude,
+                              name: buyer.name,
+                              longitude: buyer.longitude,
+                              latitude: buyer.latitude,
+                              color: onThisTrip ? tripColor(index) : '#64748b',
                             }
                           })
-                          .filter(
-                            (item): item is { name: string; longitude: number; latitude: number } =>
-                              Number.isFinite(item.longitude) && Number.isFinite(item.latitude)
-                          )}
+                          .filter((item) => Number.isFinite(item.longitude) && Number.isFinite(item.latitude))}
                       />
                     )}
                   </div>
@@ -576,6 +610,9 @@ export default function Routes() {
       {balances.length > 0 && (
         <div className="mb-8">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Остатки и потери</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Остаток = запас − отгрузка. Потеря равна остатку: что не уехало в этом плане, для отчёта сгнило.
+          </p>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-750">

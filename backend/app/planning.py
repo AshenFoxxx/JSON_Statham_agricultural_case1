@@ -13,6 +13,8 @@ def build_plan(request: PlanRequest) -> PlanResponse:
     vehicles = {vehicle.id: vehicle for vehicle in request.vehicles}
 
     trips = []
+    ready_hours: dict[str, float] = {}
+    unload_hours_per_kg = request.unload_seconds_per_kg / 3600.0
     for trip in plan.trips:
         route_points = [(FARM, request.farm.longitude, request.farm.latitude)]
         for stop in trip.stops:
@@ -25,12 +27,13 @@ def build_plan(request: PlanRequest) -> PlanResponse:
             vehicle.fuel_consumption_l_per_100km,
             vehicle.fuel_price_rub_per_liter,
         )
-        elapsed = 0.0
+        elapsed = ready_hours.get(trip.vehicle_id, 0.0)
         stops = []
-        unload_hours_per_kg = request.unload_seconds_per_kg / 3600.0
         for stop, leg in zip(trip.stops, routed["legs"]):
             elapsed += leg["hours"] + unload_hours_per_kg * stop.load_kg
             stops.append(stop.model_copy(update={"arrival_hours": round(elapsed, 2)}))
+        if routed["legs"]:
+            ready_hours[trip.vehicle_id] = elapsed + routed["legs"][-1]["hours"]
         trips.append(
             trip.model_copy(
                 update={

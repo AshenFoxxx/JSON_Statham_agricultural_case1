@@ -6,8 +6,10 @@ Model:
   z[v,t,j,pi] >= 0 - kg of product pi to buyer j
 
 Subtours: AddCircuit per outing, with self-loops for unused nodes.
-Arrival is travel plus unload_seconds_per_kg times kg (including this stop).
-Return to farm is in fuel cost, not in shelf life.
+Arrival is from the start of the shift: previous outings of this vehicle
+plus travel plus unload_seconds_per_kg times kg (including this stop).
+Return to farm ages leftover on the yard for this vehicle's next outing;
+already unloaded cargo is not affected.
 z is bounded by incoming edges, not only through y.
 """
 
@@ -29,6 +31,7 @@ OBJECTIVE = "maximize_profit"
 LOAD_EPS = 1e-3
 FARM = "farm"
 HOUR_SECONDS = 3600
+MAX_DUTY_HOURS = 12
 
 
 def _hours_to_int(hours: float) -> int:
@@ -42,6 +45,14 @@ def _hop(graph: dict[tuple[str, str], tuple[float, float]], origin: str, dest: s
     return graph.get((dest, origin))
 
 
+def _round_trip_hours(graph, buyer_id: str) -> float | None:
+    there = _hop(graph, FARM, buyer_id)
+    back = _hop(graph, buyer_id, FARM)
+    if there is None or back is None:
+        return None
+    return there[0] + back[0]
+
+
 def _vehicle_signature(vehicle) -> tuple:
     return (
         round(vehicle.capacity_kg, 6),
@@ -52,10 +63,11 @@ def _vehicle_signature(vehicle) -> tuple:
     )
 
 
-def solve_plan(request, graph, time_limit_seconds: float | None = 120):
+def solve_plan(request, graph, time_limit_seconds: float | None = 25):
     """Builds a profit-maximizing plan using CP-SAT with edge variables.
 
     time_limit_seconds: лимит поиска. 0 или None — без лимита.
+    По умолчанию 25 с: дальше чаще ждут доказательство оптимума, а не первый план.
     """
     orders = {
         (b.id, o.product_id): o
@@ -69,9 +81,16 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
     vehicles = [v for v in request.vehicles if v.available]
     stop_limit = max((v.max_stops for v in vehicles), default=1)
 
-    arrivals = _earliest_arrivals(graph, buyer_ids, stop_limit)
+    in_shift = []
+    for bid in buyer_ids:
+        round_trip = _round_trip_hours(graph, bid)
+        if round_trip is not None and round_trip <= MAX_DUTY_HOURS:
+            in_shift.append(bid)
+    arrivals = _earliest_arrivals(graph, in_shift, stop_limit)
     time_ok = set()
     for (bid, pid), order in orders.items():
+        if bid not in in_shift:
+            continue
         prod = products[product_index[pid]]
         if bid in arrivals and arrivals[bid] <= prod.max_delivery_hours:
             time_ok.add((bid, pid))
@@ -79,6 +98,7 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
     if not vehicles or not time_ok:
         return _empty_response(request, arrivals)
 
+    buyer_ids = in_shift
     all_node_ids = [FARM] + buyer_ids
     feasible_edges = []
     for fi in all_node_ids:
@@ -97,17 +117,13 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
         return _empty_response(request, arrivals)
 
     unload_sec_per_kg = int(round(request.unload_seconds_per_kg))
-    max_capacity = max((int(v.capacity_kg) for v in vehicles), default=0)
-    arrival_cap = max(
-        (_hours_to_int(product.max_delivery_hours) for product in products),
-        default=1,
-    ) + unload_sec_per_kg * max_capacity
+    arrival_cap = _hours_to_int(MAX_DUTY_HOURS)
 
     model = cp_model.CpModel()
     solver = cp_model.CpSolver()
     if time_limit_seconds:
         solver.parameters.max_time_in_seconds = time_limit_seconds
-    solver.parameters.num_workers = 4
+    solver.parameters.num_search_workers = 8
 
     # Edge variables: x[v,t,from,to]
     x = {}
@@ -149,11 +165,12 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
     for offset, buyer_id in enumerate(buyer_ids, start=1):
         node_index[buyer_id] = offset
 
+    farm_skip = {}
     for vi, v in enumerate(vehicles):
         for ti in range(v.max_trips):
             arcs = []
-            farm_skip = model.NewBoolVar(f"farm_skip_{vi}_{ti}")
-            arcs.append((0, 0, farm_skip))
+            farm_skip[vi, ti] = model.NewBoolVar(f"farm_skip_{vi}_{ti}")
+            arcs.append((0, 0, farm_skip[vi, ti]))
             for bj in buyer_ids:
                 skip = model.NewBoolVar(f"skip_{vi}_{ti}_{bj}")
                 arcs.append((node_index[bj], node_index[bj], skip))
@@ -164,6 +181,30 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
                 )
             model.AddCircuit(arcs)
             model.Add(sum(y[vi, ti, bj] for bj in buyer_ids) <= v.max_stops)
+        for ti in range(v.max_trips - 1):
+            model.Add(farm_skip[vi, ti] <= farm_skip[vi, ti + 1])
+
+    ready = {}
+    returned = {}
+    for vi, v in enumerate(vehicles):
+        for ti in range(v.max_trips):
+            ready[vi, ti] = model.NewIntVar(0, arrival_cap, f"ready_{vi}_{ti}")
+            returned[vi, ti] = model.NewIntVar(0, arrival_cap, f"ret_{vi}_{ti}")
+        model.Add(ready[vi, 0] == 0)
+        for ti in range(v.max_trips):
+            model.Add(returned[vi, ti] == ready[vi, ti]).OnlyEnforceIf(farm_skip[vi, ti])
+            for bj in buyer_ids:
+                key = (vi, ti, bj, FARM)
+                if key not in x:
+                    continue
+                hop_back = _hours_to_int(_hop(graph, bj, FARM)[0])
+                model.Add(
+                    returned[vi, ti] == arr[vi, ti, bj] + hop_back
+                ).OnlyEnforceIf(x[key])
+        for ti in range(v.max_trips - 1):
+            model.Add(ready[vi, ti + 1] == returned[vi, ti])
+        for ti in range(v.max_trips):
+            model.Add(returned[vi, ti] <= _hours_to_int(MAX_DUTY_HOURS))
 
     for vi, v in enumerate(vehicles):
         for ti in range(v.max_trips):
@@ -181,7 +222,9 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
                 ]
                 unload = unload_sec_per_kg * sum(load_here) if load_here else 0
                 if fi == FARM:
-                    model.Add(dest_arr == hop_sec + unload).OnlyEnforceIf(ev)
+                    model.Add(
+                        dest_arr == ready[vi, ti] + hop_sec + unload
+                    ).OnlyEnforceIf(ev)
                 else:
                     model.Add(
                         dest_arr == arr[vi, ti, fi] + hop_sec + unload
@@ -329,14 +372,15 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
 
     buyers_by_id = {buyer.id: buyer for buyer in buyers}
     trips = []
-    for (_vid, trip_idx), info in trips_map.items():
+    ready_hours = {vi: 0.0 for vi in range(len(vehicles))}
+    for (_vid, trip_idx), info in sorted(trips_map.items(), key=lambda item: (item[1]["vi"], item[0][1])):
         vi = info["vi"]
         ti = trip_idx
         v = vehicles[vi]
         path = _path_from_farm(info["edges"])
         if not path:
             continue
-        elapsed = 0.0
+        elapsed = ready_hours[vi]
         distance_km = 0.0
         previous = FARM
         stops: list[Stop] = []
@@ -362,6 +406,9 @@ def solve_plan(request, graph, time_limit_seconds: float | None = 120):
         back = _hop(graph, path[-1], FARM)
         if back is not None:
             distance_km += back[1]
+            ready_hours[vi] = elapsed + back[0]
+        else:
+            ready_hours[vi] = elapsed
         total_load = sum(stop.load_kg for stop in stops)
         if total_load < LOAD_EPS:
             continue
@@ -492,19 +539,16 @@ def _response_from_solver(request, status, message, shipments, trips, arrivals):
     transport_cost = sum(t.cost for t in trips)
     balances = []
     for product in request.products:
-        eligible_demand = 0.0
-        for buyer in request.buyers:
-            order = orders.get((buyer.id, product.id))
-            arrived = arrivals.get(buyer.id)
-            if order is None or arrived is None or arrived > product.max_delivery_hours:
-                continue
-            eligible_demand += order.demand_kg
         shipped = shipped_by_product.get(product.id, 0.0)
+        leftover = round(product.stock_kg - shipped, 3)
         balances.append(
-            ProductBalance(product_id=product.id, stock_kg=product.stock_kg,
+            ProductBalance(
+                product_id=product.id,
+                stock_kg=product.stock_kg,
                 shipped_kg=round(shipped, 3),
-                leftover_kg=round(product.stock_kg - shipped, 3),
-                loss_kg=round(max(0.0, product.stock_kg - eligible_demand), 3))
+                leftover_kg=leftover,
+                loss_kg=leftover,
+            )
         )
     return PlanResponse(status=status, objective=OBJECTIVE, message=message,
         assumptions=ASSUMPTIONS, shipments=shipments, trips=trips,

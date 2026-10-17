@@ -1,55 +1,79 @@
-"""Seed данные для базы данных."""
+"""Демонстрационные данные при первом запуске."""
 from sqlalchemy.orm import Session
 from app import crud, models
 
+FARM = ("Хозяйство Обнинск", 36.6103, 55.0969)
+
+PRODUCTS = [
+    ("strawberry", "Клубника", 800, 6),
+    ("lettuce", "Салат", 500, 10),
+    ("cucumber", "Огурцы", 1000, 18),
+    ("tomato", "Томаты", 1200, 24),
+]
+
+BUYERS = [
+    ("buyer-belousovo", "Белоусово", 36.668, 55.095),
+    ("buyer-obninsk", "Рынок Обнинск", 36.5855, 55.112),
+    ("buyer-maloyaroslavets", "Малоярославец", 36.471, 55.014),
+    ("buyer-naro-fominsk", "Наро-Фоминск", 36.734, 55.387),
+    ("buyer-kaluga", "Сеть Калуга", 36.2613, 54.5138),
+    ("buyer-moscow", "Рестораны Москва", 37.6173, 55.7558),
+    ("buyer-tula", "Опт Тула", 37.6186, 54.193),
+    ("buyer-voronezh", "Дальний опт Воронеж", 39.2003, 51.672),
+]
+
+# Короткий срок — ближним. Воронеж берёт клубнику дорого (скорее не успеет) и томаты.
+ORDERS = [
+    ("strawberry", "buyer-belousovo", 80, 150),
+    ("lettuce", "buyer-belousovo", 40, 90),
+    ("cucumber", "buyer-belousovo", 60, 45),
+    ("strawberry", "buyer-obninsk", 120, 160),
+    ("lettuce", "buyer-obninsk", 70, 95),
+    ("cucumber", "buyer-obninsk", 100, 50),
+    ("tomato", "buyer-obninsk", 150, 70),
+    ("strawberry", "buyer-maloyaroslavets", 80, 175),
+    ("lettuce", "buyer-maloyaroslavets", 40, 105),
+    ("tomato", "buyer-maloyaroslavets", 100, 75),
+    ("strawberry", "buyer-naro-fominsk", 100, 190),
+    ("tomato", "buyer-naro-fominsk", 120, 80),
+    ("strawberry", "buyer-kaluga", 150, 210),
+    ("cucumber", "buyer-kaluga", 180, 60),
+    ("tomato", "buyer-kaluga", 200, 85),
+    ("strawberry", "buyer-moscow", 180, 280),
+    ("lettuce", "buyer-moscow", 90, 150),
+    ("tomato", "buyer-moscow", 250, 120),
+    ("cucumber", "buyer-tula", 160, 55),
+    ("tomato", "buyer-tula", 220, 75),
+    ("strawberry", "buyer-voronezh", 120, 320),
+    ("tomato", "buyer-voronezh", 300, 140),
+]
+
+VEHICLES = [
+    ("vehicle-a", "Газель А", 900, 12, 60, 2, 4, True),
+    ("vehicle-b", "Газель Б", 800, 15, 60, 2, 3, True),
+    ("vehicle-c", "Рефрижератор", 600, 22, 70, 2, 2, True),
+]
+
 
 def seed_db(db: Session):
-    """Заполняет базу начальными данными."""
-
-    # Хозяйство
-    crud.create_farm(db, "Хозяйство Обнинск", 36.6103, 55.0969)
-
-    # Культуры
-    crud.create_product(db, "strawberry", "Клубника", 600, 6)
-    crud.create_product(db, "tomato", "Томаты", 900, 24)
-    crud.create_product(db, "cucumber", "Огурцы", 700, 18)
-
-    # Покупатели
-    crud.create_buyer(db, "buyer-obninsk", "Рынок Обнинск", 36.5855, 55.112)
-    crud.create_buyer(db, "buyer-kaluga", "Сеть Калуга", 36.2613, 54.5138)
-    crud.create_buyer(db, "buyer-tula", "Опт Тула", 37.6182, 54.1931)
-    crud.create_buyer(db, "buyer-moscow", "Рестораны Москва", 37.6173, 55.7558)
-
-    # Заказы
-    crud.create_order(db, "strawberry", "buyer-obninsk", 200, 160)
-    crud.create_order(db, "tomato", "buyer-obninsk", 250, 70)
-    crud.create_order(db, "cucumber", "buyer-obninsk", 200, 50)
-
-    crud.create_order(db, "strawberry", "buyer-kaluga", 250, 210)
-    crud.create_order(db, "tomato", "buyer-kaluga", 200, 85)
-    crud.create_order(db, "cucumber", "buyer-kaluga", 180, 60)
-
-    crud.create_order(db, "strawberry", "buyer-tula", 180, 190)
-    crud.create_order(db, "tomato", "buyer-tula", 300, 75)
-    crud.create_order(db, "cucumber", "buyer-tula", 220, 55)
-
-    crud.create_order(db, "strawberry", "buyer-moscow", 300, 280)
-    crud.create_order(db, "tomato", "buyer-moscow", 400, 120)
-    crud.create_order(db, "cucumber", "buyer-moscow", 250, 90)
-
-    # Машины
-    crud.create_vehicle(db, "vehicle-a", "Газель А", 800, 10, 60, 1, 3, True)
-    crud.create_vehicle(db, "vehicle-b", "Газель Б", 800, 11, 60, 1, 3, True)
-    crud.create_vehicle(db, "vehicle-c", "Рефрижератор", 700, 15, 60, 1, 2, True)
-
+    """Заполняет пустую базу набором для демонстрации плана."""
+    crud.create_farm(db, *FARM)
+    for item in PRODUCTS:
+        crud.create_product(db, *item)
+    for item in BUYERS:
+        crud.create_buyer(db, *item)
+    for item in ORDERS:
+        crud.create_order(db, *item)
+    for item in VEHICLES:
+        crud.create_vehicle(db, *item)
     db.commit()
 
 
 if __name__ == "__main__":
     from app.database import SessionLocal
+
     db = SessionLocal()
     try:
-        # Очистить и заполнить
         for table in [models.Vehicle, models.BuyerOrder, models.Buyer, models.Product, models.Farm]:
             db.query(table).delete()
         seed_db(db)

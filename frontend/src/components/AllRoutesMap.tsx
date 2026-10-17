@@ -27,6 +27,7 @@ export type MapBuyer = {
   name: string
   longitude: number
   latitude: number
+  color?: string
 }
 
 type AllRoutesMapProps = {
@@ -36,11 +37,11 @@ type AllRoutesMapProps = {
   className?: string
 }
 
-function buyerStyle(name: string) {
+function buyerStyle(name: string, color: string) {
   return new Style({
     image: new Circle({
       radius: 7,
-      fill: new Fill({ color: '#f59e0b' }),
+      fill: new Fill({ color }),
       stroke: new Stroke({ color: '#ffffff', width: 2 }),
     }),
     text: new Text({
@@ -81,7 +82,7 @@ export default function AllRoutesMap({ routes, farm, buyers = [], className }: A
       const point = new Feature({
         geometry: new Point(fromLonLat([buyer.longitude, buyer.latitude])),
       })
-      point.setStyle(buyerStyle(buyer.name))
+      point.setStyle(buyerStyle(buyer.name, buyer.color || '#64748b'))
       features.push(point)
     }
     if (farm) {
